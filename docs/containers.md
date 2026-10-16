@@ -10,13 +10,14 @@ deployed: the live server still runs the systemd units in [running](running.md).
 | Piece | State |
 | --- | --- |
 | `Dockerfile`, `compose.yaml`, `deploy/compose.edge.yaml` | written; built and started in CI by the Container workflow |
-| `deploy/edge/` (the proxy stack) | written; not run anywhere |
+| `deploy/edge/` (the proxy stack) | written for both projects; staged in `/opt/edge` on the host on 17 October 2026 with its Caddyfile validated and the `edge` network created; **not started** — ports 80 and 443 still belong to the other project's Caddy, and the dashboard's A record does not exist yet |
 | `deploy/containers/` (host units for the timers) | written; not installed anywhere |
 | `deploy/container-release.sh` and `container-release-remote.sh` | written; the server side is rehearsed in CI on every change against the stack it just started; never run against a server |
 | Backup through the container (`scripts/backup.sh` with `BACKUP_DATABASE_VIA=compose`, `deploy/containers/private-finances-backup.service`) | written; exercised in CI against a local restic repository; never run on a host ([backups](backups.md)) |
 | Showcase in a container | not planned yet; it stays on the old host until decided |
 | Restore proof on the new host from the bucket | not done; the shadow was loaded from a direct dump, not from the bucket |
 | Shadow installation on the destination server | **done 16 October 2026**; see "The shadow, as installed" below |
+| Edge takeover and the domain | waiting on two things: the owner's A record for the dashboard's name, and the owner's go on the other project's prepared change (its repository, branch `edge-proxy`, not pushed) |
 | Cutover | not started |
 
 ## The stack
@@ -61,23 +62,29 @@ throwaway directory under the runner's temp folder.
 
 ## The edge
 
-`deploy/edge/compose.yaml` runs one Caddy that owns ports 80 and 443 and creates
-the Docker network `edge`. `deploy/compose.edge.yaml` is the override that joins
-the dashboard to it under the alias `private-finances`; the Caddyfile proxies
-`$PF_DOMAIN` to `private-finances:3300`, adds HSTS and leaves the `Host` header
-alone because the application checks it against `PUBLIC_ORIGIN`. Hostnames
-come from `deploy/edge/.env` on the server; the example file carries
-`example.com`. On the server the dashboard is started with both files:
+`deploy/edge/compose.yaml` runs one Caddy that owns ports 80 and 443 on the
+Docker network `edge`, which is created once by hand and belongs to the host.
+`deploy/compose.edge.yaml` is the override that joins the dashboard to it under
+the alias `private-finances`; the Caddyfile proxies the dashboard's name to
+`private-finances:3300`, adds HSTS and leaves the `Host` header alone because
+the application checks it against `PUBLIC_ORIGIN`. The dashboard's hostname
+comes from `deploy/edge/.env` on the server. On the server the dashboard is
+started with both files through `COMPOSE_FILE` in `/opt/private-finances/.env`.
 
-```sh
-docker compose -f compose.yaml -f deploy/compose.edge.yaml up -d
-```
+The same Caddyfile carries the other project's site blocks, copied verbatim
+with only the upstream renamed, and the edge Caddy mounts that project's
+certificate, config and media volumes under their old names, so nothing is
+re-issued and its access log continues. Who owns what, the takeover sequence
+with its seconds of downtime, and the rollback are in
+[the edge README](../deploy/edge/README.md). The other project's side — its
+`caddy` service removed, its app joined to `edge` as `hlyna` — is prepared as
+a commit in that repository and is deployed only with the owner, as that
+repository's rules require.
 
-The other project on the destination server has its own Caddy today. Moving it
-into the edge is a change to that project: its site blocks move into this
-Caddyfile, its stack drops the `caddy` service and joins `edge` under its own
-alias, and its certificate volume is attached to the edge Caddy so nothing is
-re-issued. That happens when this project arrives, not before.
+As of 17 October 2026 the edge is staged and validated on the host but not
+started; the shadow dashboard already has `PUBLIC_ORIGIN` set to its future
+name and is joined to the `edge` network, so starting the edge is the only
+step left on this side once the name resolves.
 
 ## The timers
 
@@ -205,22 +212,36 @@ or poll Telegram at the same time; the order below exists for that reason.
 
 1. **Shadow.** Done, as described above. Still open from it: the owner signs
    in over the tunnel and compares the screens with the live dashboard.
-2. **Edge.** Point the new domain at the server, start the edge stack, move
-   the other project's Caddy into it, start the dashboard with the edge
-   override. `PUBLIC_ORIGIN` on the shadow is the new origin from here on.
-3. **Bank provider.** Register the new callback,
+2. **Edge.** The owner points the new domain at the server (an A record; the
+   name is recorded outside Git with the server's addresses). Then, in one
+   sitting, the takeover in [the edge README](../deploy/edge/README.md): the
+   other project's app joins `edge` live, its Caddy stops, the edge Caddy
+   starts, both sites are checked, the other project's compose change is
+   applied. The shadow already carries the new `PUBLIC_ORIGIN` and sits on
+   `edge`.
+3. **Keys that know the old server's address.** The Binance read-only key
+   used by the assets feed is restricted to the server's address
+   ([credentials](credentials.md)); before cutover the owner adds the new
+   server's address to it in Binance's API management, keeping the old one
+   until afterwards. Checked on 17 October 2026 and found unrestricted by
+   address: the backup bucket's IAM policy (scoped to the bucket, no source
+   condition), Monobank's personal tokens, the IBKR Flex token, the OpenAI
+   key and the Telegram bot. Enable Banking knows the redirect URL, not the
+   address; that is the next item.
+4. **Bank provider.** Register the new callback,
    `https://<new domain>/connections/enablebanking/callback`, in the Enable
    Banking control panel alongside the old one ([bank consent](bank-consent.md)).
    Consents are approved again by each owner after the cutover; the restored
    PEM keys and tokens are what carry over.
-4. **Cutover, one sitting.** On the old server: stop the sync timers, wait for
+5. **Cutover, one sitting.** On the old server: stop the sync timers, wait for
    imports, stop the Telegram worker, take a final dump. On the new server:
    restore it, create the schedule markers, add `telegram.env`, start
    `telegram`, enable the timers. Each owner re-approves their banks through
    Bank connections. The Telegram links in reports now carry the new domain.
-5. **Afterwards.** Install `backup.env` and the restic password on the new
+6. **Afterwards.** Install `backup.env` and the restic password on the new
    host, run the backup once by hand and prove the restore as in
    [backups](backups.md). Remove the old callback from the bank provider.
+   Remove the old server's address from every key that was allowed it.
    Record the new host in `~/.config/private-finances/server-access.md` and a
    new SSH alias; update [server requirements](server-requirements.md) and
    [running](running.md) to describe the container host. Only then disable

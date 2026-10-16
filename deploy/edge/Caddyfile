@@ -1,9 +1,15 @@
-# One site block per project. Hostnames come from .env so the file itself
-# carries no address; the upstream is the alias the project's stack registers
+# One site block per project. The finance dashboard's hostname comes from
+# .env so this file carries no address of its own; the other project's names
+# are public ones. Each upstream is the alias the project's stack registers
 # on the `edge` network.
 {
-	email {$ACME_EMAIL}
+	log {
+		output stdout
+		format json
+	}
 }
+
+# ---- Private Finances ----------------------------------------------------
 
 {$PF_DOMAIN} {
 	encode zstd gzip
@@ -14,10 +20,61 @@
 		-Server
 	}
 	# The application checks the Host header against PUBLIC_ORIGIN, so it is
-	# passed through unchanged (Caddy's default).
-	reverse_proxy private-finances:3300
+	# passed through unchanged (Caddy's default). A release recreates the
+	# container; requests wait up to thirty seconds for it rather than failing.
+	reverse_proxy private-finances:3300 {
+		lb_try_duration 30s
+		lb_try_interval 250ms
+	}
+}
+
+# ---- Hlyna ---------------------------------------------------------------
+# Moved here verbatim from that project's own Caddyfile, except the upstream
+# name. Its repository documents the behaviour; change it there first.
+
+www.hlyna.com.ua, hlyna.com, www.hlyna.com {
+	redir https://hlyna.com.ua{uri} permanent
+}
+
+hlyna.com.ua {
+	encode zstd gzip
+
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	@immutable path /_next/static/*
+	header @immutable >Cache-Control "public, max-age=31536000, immutable"
+
+	request_body {
+		max_size 25MB
+	}
+
+	# Access log in the caddy_data volume: ~90 days, gzipped when rolled.
 	log {
-		output stderr
+		output file /data/access/hlyna.log {
+			roll_size 50MiB
+			roll_keep 60
+			roll_keep_for 2160h
+		}
 		format json
+	}
+
+	@legacyMedia path_regexp legacyMedia ^/api/media/file/(.+)$
+	redir @legacyMedia /media/{re.legacyMedia.1} permanent
+	handle_path /media/* {
+		root * /srv/media
+		header Cache-Control "public, max-age=2592000"
+		header X-Content-Type-Options nosniff
+		file_server
+	}
+
+	handle_errors 502 503 504 {
+		header Content-Type "text/html; charset=utf-8"
+		header Retry-After "10"
+		respond `<!doctype html><html lang="uk"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="10"><title>Глина — оновлюємо сайт</title><body style="margin:0;background:#f3e7da;color:#2a2018;font-family:system-ui,sans-serif"><main style="max-width:640px;margin:0 auto;padding:64px 16px"><p style="color:#b4683f;font-weight:700;letter-spacing:2px;text-transform:uppercase;font-size:13px">глина</p><h1>Оновлюємо сайт</h1><p style="font-size:18px;color:#6c5243">Сторінка відкриється за кілька секунд — вона оновиться сама.</p></main></body></html>` 503
+	}
+
+	reverse_proxy hlyna:3000 {
+		lb_try_duration 30s
+		lb_try_interval 250ms
 	}
 }
