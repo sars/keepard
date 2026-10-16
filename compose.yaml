@@ -26,6 +26,14 @@ x-application: &application
     - ALL
   security_opt:
     - no-new-privileges:true
+  # Public resolvers rather than the host's. The destination server's own
+  # resolver answers SERVFAIL for some Akamai-fronted names — the broker's
+  # statement host among them, found on 17 October 2026 — and every public
+  # resolver answers them. Scoped to this stack; the host is left alone. The
+  # repository check allows exactly these well-known resolver addresses.
+  dns:
+    - 1.1.1.1
+    - 8.8.8.8
   volumes:
     - ${PF_CONFIG_DIR:-/etc/private-finances}:/etc/private-finances:ro
     - ${PF_STATE_DIR:-/var/lib/private-finances}/consent:/var/lib/private-finances-consent

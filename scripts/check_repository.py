@@ -36,10 +36,14 @@ def main():
     # written here — putting them in a tracked file would republish exactly what
     # was taken out — so these match the shape instead of the value.
     ipv4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+    # The last line names the public DNS resolvers the container stack uses
+    # (Cloudflare, Google, Quad9). They are the world's addresses, not this
+    # household's, and a resolver can only be named by its address.
     routable_exceptions = re.compile(
         r"^(?:0\.0\.0\.0$|127\.|10\.|192\.168\.|169\.254\.|255\.255\.255\.255$"
         r"|172\.(?:1[6-9]|2\d|3[01])\."
-        r"|192\.0\.2\.|198\.51\.100\.|203\.0\.113\.)"  # RFC 5737 documentation ranges
+        r"|192\.0\.2\.|198\.51\.100\.|203\.0\.113\."  # RFC 5737 documentation ranges
+        r"|1\.1\.1\.1$|1\.0\.0\.1$|8\.8\.8\.8$|8\.8\.4\.4$|9\.9\.9\.9$)"
     )
     tailnet_host = re.compile(r"\b[A-Za-z0-9][A-Za-z0-9-]*\.ts\.net\b")
     for name in names:

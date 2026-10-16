@@ -9,6 +9,9 @@
 #   PF_COMPOSE_DIR    where compose.yaml and .env live      /opt/private-finances
 #   PF_PREDEPLOY_DIR  where the pre-switch dump is kept     /var/lib/private-finances/predeploy
 #   PF_SERVICES       the services recreated at the switch  "app telegram"
+#                     (also read from .env in PF_COMPOSE_DIR, so a host that
+#                     must not run the Telegram worker — a shadow — says so
+#                     once, in its own configuration)
 #
 # Every step is a gate. Nothing is switched until the rehearsal has passed; a
 # failure after the timers were stopped resumes them before this exits; a
@@ -28,7 +31,6 @@ digest=${3:-}
 }
 compose_dir=${PF_COMPOSE_DIR:-/opt/private-finances}
 predeploy_dir=${PF_PREDEPLOY_DIR:-/var/lib/private-finances/predeploy}
-services=${PF_SERVICES:-app telegram}
 scratch_db=private_finances_migration_check
 short=${sha:0:7}
 build=/tmp/pf-build-$short
@@ -51,6 +53,8 @@ port=${port:-3300}
 config_dir=$(setting PF_CONFIG_DIR)
 config_dir=${config_dir:-/etc/private-finances}
 previous_release=$(setting PF_RELEASE)
+services=${PF_SERVICES:-$(setting PF_SERVICES)}
+services=${services:-app telegram}
 
 ready_release() {
   curl -fsS "http://127.0.0.1:$port/health/ready" 2>/dev/null |
@@ -71,17 +75,22 @@ workers_running() {
 
 # Resumption is the one thing that must survive any failure: the imports and the
 # Telegram worker pause for the switch and nothing below may leave the
-# household without them.
+# household without them. Only what was running is resumed: a host whose
+# Telegram worker was deliberately stopped — a shadow beside the live server —
+# must not have it started by a release.
 timers=
 paused=
 rehearsing=
+telegram_was_running=
 resume_services() {
   if [ -n "$timers" ]; then
     # shellcheck disable=SC2086
     systemctl start $timers || echo 'warning: the import timers did not all resume; start them by hand' >&2
   fi
-  compose up -d --no-build telegram >/dev/null 2>&1 ||
-    echo 'warning: the Telegram worker did not resume; `docker compose up -d telegram` by hand' >&2
+  if [ -n "$telegram_was_running" ]; then
+    compose up -d --no-build telegram >/dev/null 2>&1 ||
+      echo 'warning: the Telegram worker did not resume; `docker compose up -d telegram` by hand' >&2
+  fi
 }
 cleanup_on_exit() {
   status=$?
@@ -198,7 +207,12 @@ if [ -n "$timers" ]; then
 else
   echo 'no import timers are enabled on this host'
 fi
-compose stop telegram >/dev/null 2>&1 || true
+if compose ps --status running --services 2>/dev/null | grep -qx telegram; then
+  telegram_was_running=1
+  compose stop telegram >/dev/null 2>&1 || true
+else
+  echo 'the Telegram worker is not running on this host and will not be started'
+fi
 for _ in $(seq 1 60); do
   workers_running || break
   sleep 5
