@@ -316,6 +316,14 @@ system for about fifty minutes in between, longer than planned.
    that night; the two Monobank imports were still running when this was
    written.
 
+The first release after the cutover, carrying these fixes, rolled itself
+back as designed: `compose up --wait` refuses a service that has no health
+check, which the Telegram worker now deliberately has not, so the switch was
+judged failed and the previous image came back within the minute while the
+updated backup script and unit stayed installed. The script now starts the
+services plainly and reads readiness from the dashboard and the container
+states. The rollback path had never run before; it worked.
+
 The backup's first run as a service failed at the dump stage, although the
 same script succeeds by hand: `COMPOSE_FILE` in the stack's `.env` names its
 files relative to the current directory, and a service starts in `/`. The
