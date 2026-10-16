@@ -67,6 +67,17 @@ wait_for_release() {
   done
   return 1
 }
+# `compose up --wait` refuses a service without a health check, and the
+# Telegram worker has none to give (it serves no port). So the services are
+# started plainly and the readiness is read from the dashboard and from the
+# container states instead.
+services_running() {
+  local running service
+  running=$(compose ps --status running --services 2>/dev/null)
+  for service in $services; do
+    grep -qx "$service" <<<"$running" || return 1
+  done
+}
 workers_running() {
   [ -n "$(docker ps -q \
     --filter label=com.docker.compose.project=private-finances \
@@ -258,13 +269,13 @@ PY
 }
 set_release "$sha"
 # shellcheck disable=SC2086
-if compose up -d --no-build --wait --wait-timeout 180 $services && wait_for_release "$sha"; then
+if compose up -d --no-build $services && wait_for_release "$sha" && services_running; then
   echo "{\"event\":\"deployment_succeeded\",\"release\":\"$sha\",\"previousRelease\":\"$running\"}"
 else
   echo 'the new release did not become ready; putting the previous image back' >&2
   set_release "$previous_release"
   # shellcheck disable=SC2086
-  compose up -d --no-build --wait --wait-timeout 180 $services >/dev/null 2>&1 || true
+  compose up -d --no-build $services >/dev/null 2>&1 || true
   wait_for_release "$running" || echo "warning: the previous release $running is not answering either" >&2
   fail 70 '{"event":"deployment_failed","action":"previous_release_restored_inspect_logs"}'
 fi
