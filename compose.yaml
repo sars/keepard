@@ -71,6 +71,9 @@ services:
     environment:
       APP_MODE: postgres
       PORT: '3300'
+      # The container's own address, not the host's: the port is published on
+      # the host's loopback interface only (see `ports:` below).
+      BIND_ADDRESS: 0.0.0.0
       RELEASE_SHA: ${PF_RELEASE:-local}
       CREDENTIALS_DIRECTORY: /etc/private-finances/credentials
       ENABLEBANKING_SESSION_DIRECTORY: /var/lib/private-finances-consent

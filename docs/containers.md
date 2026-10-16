@@ -44,6 +44,11 @@ capabilities dropped and `/tmp` on a tmpfs, and mounts:
 | `$PF_STATE_DIR/consent` (`/var/lib/private-finances/consent`) | `/var/lib/private-finances-consent` | the bank-session secrets the consent flow writes |
 | `$PF_STATE_DIR/sync` (`/var/lib/private-finances/sync`) | `/var/lib/private-finances-sync` | the scheduler's state, `worker` only |
 
+The dashboard listens on the loopback interface unless `BIND_ADDRESS` says
+otherwise; compose sets it to the container's every address, and publishes the
+port on the host's loopback only. The variable did not exist before this
+change and the systemd units do not set it, so nothing changes for them.
+
 `db.env` is new: it holds `POSTGRES_PASSWORD`, and `DATABASE_URL` in `app.env`
 becomes `postgresql://private-finances:<that password>@db:5432/private_finances`.
 Peer authentication over the socket does not cross a container boundary.

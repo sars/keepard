@@ -231,11 +231,16 @@ const tick = () => {
     });
 };
 const timer = setInterval(tick, 1000);
-server.listen(port, '127.0.0.1', () => {
+// Loopback unless told otherwise: the systemd deployment is reached through a
+// tunnel or a proxy on the same machine. Inside a container the address has to
+// be the container's, and compose sets BIND_ADDRESS=0.0.0.0 there while
+// publishing the port on the host's loopback interface only.
+const bindAddress = process.env.BIND_ADDRESS ?? '127.0.0.1';
+server.listen(port, bindAddress, () => {
   process.stdout.write(
     JSON.stringify({
       event: 'listening',
-      url: `http://127.0.0.1:${port}`,
+      url: `http://${bindAddress}:${port}`,
       mode,
     }) + '\n',
   );
