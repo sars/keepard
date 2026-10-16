@@ -12,7 +12,7 @@ deployed: the live server still runs the systemd units in [running](running.md).
 | `Dockerfile`, `compose.yaml`, `deploy/compose.edge.yaml` | written; built and started in CI by the Container workflow |
 | `deploy/edge/` (the proxy stack) | written; not run anywhere |
 | `deploy/containers/` (host units for the timers) | written; not installed anywhere |
-| Container release script | not written; the gates it must keep are listed below |
+| `deploy/container-release.sh` and `container-release-remote.sh` | written; the server side is rehearsed in CI on every change against the stack it just started; never run against a server |
 | Backup through the container | not written |
 | Showcase in a container | not planned yet; it stays on the old host until decided |
 | Shadow installation on the destination server | not started |
@@ -86,28 +86,65 @@ per-bank `timer.d` drop-ins and the markers under `/etc/private-finances/schedul
 are those of the systemd deployment, unchanged; see [scheduling](scheduling.md).
 The marker check inspects ownership and mode, and a bind mount preserves both.
 
-## What a release must still guarantee
+## The release
 
-The systemd release script ([running](running.md)) is the best-exercised path
-in the project, and the container release script has to keep every one of its
-gates. In order:
+```sh
+bash deploy/container-release.sh <40-character commit sha> <ssh host> [--allow-rollback]
+```
 
-1. The commit is on `origin/main` and descends from the running release, unless
-   a rollback is asked for explicitly.
-2. The image is built from exactly that commit and tagged with its SHA.
-3. The application tests pass on that commit — in CI, which the script checks
-   through the GitHub API, rather than on the server.
-4. The migration is rehearsed: dump the live database through
-   `docker compose exec -T db pg_dump`, restore into a scratch database inside
-   the same container, run the migration there with the new image, drop the
-   scratch database on every exit.
-5. The timers are stopped and a running import is waited for, up to five
-   minutes; the Telegram worker is stopped. Every exit from here on resumes them.
-6. `PF_RELEASE=<sha> docker compose up -d app telegram` recreates the two
-   services; `/health/ready` on the loopback port answers with the new SHA.
-7. Old images beyond the newest ten and the live one are removed, and
-   `docker builder prune` keeps the BuildKit cache bounded. The destination
-   server had 76 GB of unbounded cache from the other project on 16 October 2026.
+The host is named every time, because during the move two servers exist. The
+script is the container counterpart of `deploy/release.sh` and keeps its gates
+in the same order; what changed is the commands, and one source of evidence:
+
+1. **The commit** is on `origin/main`, and the running release, read from
+   `/health/ready` through SSH, is an ancestor of it unless `--allow-rollback`
+   is passed. A host whose release is not a commit at all — a shadow started
+   with the default tag — is treated as receiving its first release.
+2. **The checks GitHub ran.** The systemd release runs the test suite on the
+   server; the container host has no development dependencies, so the script
+   asks GitHub, through `pf-gh`, whether "Application checks" and "Image and
+   stack" completed successfully for that exact commit, and refuses otherwise.
+3. **The archive** is `git archive` of the commit, copied with its SHA-256,
+   verified on the host before anything is built.
+4. **The image** is built on the host from that archive and tagged
+   `private-finances:<sha>`.
+5. **The rehearsal.** The live database is dumped through the `db` container
+   into the pre-deployment directory, restored into a scratch database inside
+   the same container, and the new image runs the migration there and reports
+   schema version and the same counts the systemd release prints. The scratch
+   database is dropped on every exit once it has been created.
+6. **The pause.** The enabled `private-finances-sync@` timers are stopped, the
+   Telegram worker is stopped, and a running worker container is waited for up
+   to five minutes. From the first stop on, every exit resumes both.
+7. **The switch.** `compose.yaml`, the edge override and the retention rule are
+   installed into the compose directory; a host unit that exists and changed
+   is refreshed; `PF_RELEASE` in `.env` is rewritten atomically; `app` and
+   `telegram` are recreated and waited for. If the new release does not
+   answer with its SHA, `.env` goes back and the previous image is brought up
+   again before the script fails.
+8. **Verification** prints the release, schema version, transaction count and
+   service states, and fails unless the dashboard answers with the new SHA.
+9. **Pruning**, only after success and never fatal: pre-deployment dumps by
+   the rule `local-backup.py` defines, images beyond the newest ten except the
+   live one and its predecessor, dangling layers, and the BuildKit cache held
+   to ten gigabytes.
+
+The server side is `deploy/container-release-remote.sh`, which the orchestrator
+copies over and runs as root. CI runs that same script on every change against
+the stack it has just started, so the rehearsal, the switch and the rollback
+path are exercised before any host sees them; the orchestrator's own checks
+need this machine's Git and GitHub access and are not rehearsed there.
+
+Two things the systemd release does that this one does not, yet:
+
+- **Open browser tabs across releases.** The systemd switch copies the previous
+  release's fingerprinted frontend files into the new tree so a tab opened
+  before the switch can still load them. An image is immutable; a tab opened
+  before a container release may fail to load a chunk until it is reloaded.
+  Acceptable for a household; recorded so it is not forgotten.
+- **Deploy lock.** Two releases at once are prevented by the running-release
+  check, not by a lock file. The systemd script holds one in
+  `/var/lib/private-finances/deploy.lock`.
 
 ## Moving, without breaking the running system
 
