@@ -111,7 +111,9 @@ jobs:
             BACKUP_CONFIG_PATHS="$PF_CONFIG_DIR" BACKUP_DESTINATION_LABEL=ci-local \
             bash scripts/backup.sh | tee backup.json
           grep -q '"event":"backup_completed","recorded":true,"config":true' backup.json
-          snapshots=$(restic --repo "$repository" --password-file "$RUNNER_TEMP/restic-password" snapshots --json | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
+          # The script runs as root with a 077 umask, so the repository it
+          # wrote is read back as root too.
+          snapshots=$(sudo restic --repo "$repository" --password-file "$RUNNER_TEMP/restic-password" snapshots --json | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
           test "$snapshots" -eq 2
           outcome=$(docker compose exec -T db psql -U private-finances -d private_finances -tAc "select outcome from backup_runs order by started_at desc limit 1")
           test "$outcome" = succeeded

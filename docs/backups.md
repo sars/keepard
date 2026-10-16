@@ -125,8 +125,10 @@ cross a container boundary. The host unit in
 `BACKUP_DATABASE_VIA=compose` and `PF_COMPOSE_DIR=/opt/private-finances`, and
 the script then runs `pg_dump` and the status-row `psql` inside the `db`
 container, as the owner role `private-finances`, through
-`docker compose exec`. The dump arrives on stdout and lands in root's private
-work directory; nothing is written by the service user anywhere.
+`docker compose exec`. Through that door the dump arrives on stdout and root
+writes it into its private work directory, because the container cannot see
+the host's filesystem. Over the socket nothing changes: pg_dump still writes
+the file itself as the service user, exactly as before.
 
 `/etc/private-finances/backup.env` on that host holds `PGDATABASE`,
 `RESTIC_REPOSITORY`, `RESTIC_PASSWORD_FILE`, `AWS_ACCESS_KEY_ID` and

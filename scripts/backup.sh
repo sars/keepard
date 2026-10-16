@@ -61,6 +61,16 @@ database() {
     ;;
   esac
 }
+# The dump differs in one respect: over the socket pg_dump writes the file
+# itself, as the service user, which is why the work directory below is made
+# crossable for it; through compose the container cannot see this filesystem,
+# so the dump arrives on stdout and root writes it.
+dump_database() {
+  case $via in
+  socket) database pg_dump --format=custom --no-owner --no-acl --file="$1" ;;
+  compose) database pg_dump --format=custom --no-owner --no-acl >"$1" ;;
+  esac
+}
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 backup_work=$(mktemp -d)
 trap 'rm -rf -- "$backup_work"' EXIT
@@ -152,13 +162,17 @@ for candidate in "${candidates[@]}"; do
   [ -e "$candidate" ] && config_paths+=("$candidate")
 done
 
-# The dump arrives on stdout and lands in root's private work directory, so
-# the service user never needs to write anywhere, whichever door it came
-# through. Diagnostics stay private: pg_dump/restic errors may contain
-# connection details.
-mkdir -m 700 "$backup_work/dump"
-if ! database pg_dump --format=custom --no-owner --no-acl \
-  >"$backup_work/dump/database.dump" 2>"$backup_work/error"; then
+# The dump is written by the service user, so it gets a directory of its own
+# that the service user owns; root reads it back regardless. The parent has to
+# become traversable for that to be reachable at all — `mktemp -d` makes it
+# 0700 root, and a directory the service user cannot enter is a directory it
+# cannot write into, whoever owns what is inside. 0711 grants the crossing and
+# not the listing, so the error and result files beside it stay unreadable.
+chmod 0711 "$backup_work"
+install -d -o "$dump_user" -g "$dump_user" -m 700 "$backup_work/dump"
+
+# Diagnostics stay private: pg_dump/restic errors may contain connection details.
+if ! dump_database "$backup_work/dump/database.dump" 2>"$backup_work/error"; then
   echo '{"event":"backup_failed","stage":"dump"}' >&2
   record failed dump '' ''
   exit 1
