@@ -19,6 +19,10 @@ only through the operator's own `~/.ssh/config`, so it discloses nothing. The
 machine also runs unrelated applications, so never restart or reconfigure anything
 outside the `private-finances` units.
 
+A move to a different server, where the application runs as a Compose stack
+and needs only Docker on the host, is designed in [containers](containers.md).
+Until that cutover this page describes the live machine.
+
 ## System packages
 
 | Requirement                           | Observed | Used for                                                                                   | Without it                                                                                                                                  |

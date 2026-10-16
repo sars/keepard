@@ -1,0 +1,134 @@
+# Private Finances as one Compose stack on a shared server: the dashboard, its
+# own PostgreSQL, the Telegram worker, and a `worker` service that the host's
+# systemd timers run for the scheduled jobs. Nothing is published beyond the
+# loopback interface; HTTPS comes from the separate edge stack in deploy/edge,
+# joined through deploy/compose.edge.yaml.
+#
+# Configuration and credentials stay on the host under PF_CONFIG_DIR
+# (/etc/private-finances, as on the systemd deployment) and are mounted
+# read-only. The variables and files expected there are listed in
+# docs/containers.md; none of them is in this repository.
+#
+#   docker compose up -d                         # dashboard, database, Telegram
+#   docker compose --profile tools run --rm worker node dist/src/schedule.js <instance>
+#
+# Every container runs as PF_UID:PF_GID, the host's private-finances account,
+# so the bind-mounted credentials keep their host permissions.
+name: private-finances
+
+x-application: &application
+  image: private-finances:${PF_RELEASE:-local}
+  user: '${PF_UID:-1000}:${PF_GID:-1000}'
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  volumes:
+    - ${PF_CONFIG_DIR:-/etc/private-finances}:/etc/private-finances:ro
+    - ${PF_STATE_DIR:-/var/lib/private-finances}/consent:/var/lib/private-finances-consent
+  logging: &logging
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '3'
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    env_file:
+      # POSTGRES_PASSWORD, the same password DATABASE_URL in app.env carries.
+      - ${PF_CONFIG_DIR:-/etc/private-finances}/db.env
+    environment:
+      POSTGRES_USER: private-finances
+      POSTGRES_DB: private_finances
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # No `ports:` on purpose. Reach the database with
+    # `docker compose exec db psql -U private-finances private_finances`.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U private-finances -d private_finances']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+    logging: *logging
+
+  app:
+    <<: *application
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - ${PF_CONFIG_DIR:-/etc/private-finances}/app.env
+    environment:
+      APP_MODE: postgres
+      PORT: '3300'
+      RELEASE_SHA: ${PF_RELEASE:-local}
+      CREDENTIALS_DIRECTORY: /etc/private-finances/credentials
+      ENABLEBANKING_SESSION_DIRECTORY: /var/lib/private-finances-consent
+    ports:
+      # Loopback only: an SSH tunnel for the operator, the release checks,
+      # and nothing else. The public name is served by the edge proxy.
+      - '127.0.0.1:${PF_PORT:-3300}:3300'
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  telegram:
+    <<: *application
+    command: ['node', 'dist/src/telegram-cli.js']
+    restart: unless-stopped
+    env_file:
+      - ${PF_CONFIG_DIR:-/etc/private-finances}/app.env
+      - ${PF_CONFIG_DIR:-/etc/private-finances}/telegram.env
+    environment:
+      RELEASE_SHA: ${PF_RELEASE:-local}
+      CREDENTIALS_DIRECTORY: /etc/private-finances/credentials
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # Not started by `up`: the host's systemd timers run it, one short-lived
+  # container per job, so a job survives a dashboard restart and a release
+  # waits for it the way it waits for the systemd units today.
+  worker:
+    <<: *application
+    profiles: [tools]
+    restart: 'no'
+    env_file:
+      - ${PF_CONFIG_DIR:-/etc/private-finances}/app.env
+      - ${PF_CONFIG_DIR:-/etc/private-finances}/sync.env
+    environment:
+      RELEASE_SHA: ${PF_RELEASE:-local}
+      CREDENTIALS_DIRECTORY: /etc/private-finances/credentials
+      ENABLEBANKING_SESSION_DIRECTORY: /var/lib/private-finances-consent
+    volumes:
+      - ${PF_CONFIG_DIR:-/etc/private-finances}:/etc/private-finances:ro
+      - ${PF_STATE_DIR:-/var/lib/private-finances}/consent:/var/lib/private-finances-consent
+      - ${PF_STATE_DIR:-/var/lib/private-finances}/sync:/var/lib/private-finances-sync
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  pgdata: # the database; dumped by the backup job, see docs/containers.md

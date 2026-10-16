@@ -1,0 +1,85 @@
+name: Container
+# Builds the application image and starts the Compose stack against a
+# disposable configuration, then asks the dashboard whether it is ready. This
+# is the only place the image is exercised before a server sees it, so it runs
+# on every change that could affect it; documentation-only commits skip it.
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: container-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  stack:
+    name: Image and stack
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PF_RELEASE: ci-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      # The stack reads its configuration from a host directory. This one holds
+      # throwaway values that exist only for the length of the job; the layout
+      # is the one docs/containers.md describes for a real host.
+      - name: Prepare a disposable configuration
+        run: |
+          config="$RUNNER_TEMP/private-finances-config"
+          state="$RUNNER_TEMP/private-finances-state"
+          mkdir -p "$config/credentials" "$config/schedules" "$state/consent" "$state/sync"
+          chmod 700 "$config/credentials" "$state/consent" "$state/sync"
+          printf 'POSTGRES_PASSWORD=disposable-ci-only\n' > "$config/db.env"
+          {
+            echo 'DATABASE_URL=postgresql://private-finances:disposable-ci-only@db:5432/private_finances'
+            echo 'RODION_EMAIL=rodion@example.com'
+            echo 'KATYA_EMAIL=katya@example.com'
+            echo 'RODION_PASSWORD=disposable-ci-only-password-1'
+            echo 'KATYA_PASSWORD=disposable-ci-only-password-2'
+          } > "$config/app.env"
+          : > "$config/sync.env"
+          : > "$config/telegram.env"
+          {
+            echo "PF_CONFIG_DIR=$config"
+            echo "PF_STATE_DIR=$state"
+            echo "PF_UID=$(id -u)"
+            echo "PF_GID=$(id -g)"
+          } >> "$GITHUB_ENV"
+      - name: Build the image
+        run: docker compose build app
+      - name: Start the database and the dashboard
+        run: docker compose up -d --wait db app
+      - name: Ask the dashboard whether it is ready
+        run: |
+          curl -fsS http://127.0.0.1:3300/health/ready | tee ready.json
+          grep -q '"status":"ready"' ready.json
+          grep -q "\"release\":\"$PF_RELEASE\"" ready.json
+      - name: Confirm the schema was applied
+        run: |
+          schema=$(docker compose exec -T db psql -U private-finances -d private_finances -tAc 'select max(version) from schema_versions')
+          echo "schema version $schema"
+          test "$schema" -gt 0
+      - name: Run a job the way a timer would
+        run: |
+          docker compose --profile tools run --rm worker node -e '
+            const fs = require("node:fs");
+            fs.accessSync("/etc/private-finances/schedules");
+            fs.accessSync("/var/lib/private-finances-sync", fs.constants.W_OK);
+            fs.accessSync("/var/lib/private-finances-consent", fs.constants.W_OK);
+            console.log("worker mounts in place", process.version);
+          '
+      - name: Show the dashboard log
+        if: always()
+        run: docker compose logs --no-color app db | tail -80
+      - name: Tear the stack down
+        if: always()
+        run: docker compose --profile tools down --volumes --remove-orphans

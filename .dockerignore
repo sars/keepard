@@ -1,0 +1,28 @@
+# The build context is the committed tree, nothing a checkout accumulates.
+.git
+.claude
+.worktrees
+.shots
+node_modules
+dist
+coverage
+data
+exports
+backups
+logs
+*.log
+*.sqlite*
+*.dump
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+credentials
+secrets
+Claude outputs
+docs
+showcase
+deploy
+.github

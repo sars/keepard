@@ -1,0 +1,46 @@
+# The edge: one Caddy that owns ports 80 and 443 for every project on the
+# server, in a stack of its own. Each project joins the `edge` network under a
+# distinct alias and gets a site block in the Caddyfile; nothing else is shared.
+#
+#   cp .env.example .env     # the public names, nothing secret
+#   docker compose up -d
+#
+# Certificates live in caddy_data. Losing that volume means re-issuing from
+# Let's Encrypt, which is rate-limited, so it is part of the host's backup.
+name: edge
+
+services:
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+networks:
+  edge:
+    name: edge
+
+volumes:
+  caddy_data:
+  caddy_config:

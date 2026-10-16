@@ -1,0 +1,23 @@
+# One site block per project. Hostnames come from .env so the file itself
+# carries no address; the upstream is the alias the project's stack registers
+# on the `edge` network.
+{
+	email {$ACME_EMAIL}
+}
+
+{$PF_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	# The application checks the Host header against PUBLIC_ORIGIN, so it is
+	# passed through unchanged (Caddy's default).
+	reverse_proxy private-finances:3300
+	log {
+		output stderr
+		format json
+	}
+}
