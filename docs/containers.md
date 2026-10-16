@@ -18,7 +18,7 @@ deployed: the live server still runs the systemd units in [running](running.md).
 | Restore proof on the new host from the bucket | not done; the shadow was loaded from a direct dump, not from the bucket |
 | Shadow installation on the destination server | **done 16 October 2026**; see "The shadow, as installed" below |
 | Edge takeover and the domain | **done 17 October 2026**; the other project's change is on its `main` and marked as its deployed commit |
-| Cutover | not started |
+| Cutover | `deploy/cutover-to-containers.sh`, written 17 October 2026; its run is recorded under "The cutover" below once done |
 
 ## The stack
 
@@ -254,11 +254,10 @@ or poll Telegram at the same time; the order below exists for that reason.
    Banking control panel alongside the old one ([bank consent](bank-consent.md)).
    Consents are approved again by each owner after the cutover; the restored
    PEM keys and tokens are what carry over.
-5. **Cutover, one sitting.** On the old server: stop the sync timers, wait for
-   imports, stop the Telegram worker, take a final dump. On the new server:
-   restore it, create the schedule markers, add `telegram.env`, start
-   `telegram`, enable the timers. Each owner re-approves their banks through
-   Bank connections. The Telegram links in reports now carry the new domain.
+5. **Cutover, one sitting.** `deploy/cutover-to-containers.sh`, described
+   under "The cutover" below. Each owner then re-approves their banks through
+   Bank connections if a consent has lapsed. The Telegram links in reports
+   carry the new domain from then on.
 6. **Afterwards.** Install `backup.env` and the restic password on the new
    host, run the backup once by hand and prove the restore as in
    [backups](backups.md). Remove the old callback from the bank provider.
@@ -267,6 +266,37 @@ or poll Telegram at the same time; the order below exists for that reason.
    new SSH alias; update [server requirements](server-requirements.md) and
    [running](running.md) to describe the container host. Only then disable
    the old server's units.
+
+## The cutover
+
+`deploy/cutover-to-containers.sh <old host> <new host> <released sha>` does
+the move from the operator's machine in one sitting, verifying each step and
+stopping at the first failure without undoing anything by itself, because
+the right rollback depends on where it stopped:
+
+1. Old host: every `private-finances` timer, the Telegram worker and the
+   dashboard are disabled and stopped (the list is kept in
+   `/etc/private-finances/cutover-disabled-units` there); a running import is
+   waited for up to five minutes. The showcase stays.
+2. Old to new: the final dump, the schedule markers, `telegram.env` and
+   `telegram.enabled`, and the bank-session state directory.
+3. New host: the dashboard stops, the database is dropped and created again,
+   the dump is loaded with `--exit-on-error`, every table's row count is
+   compared with the old host and must match, the `local-restore-verified`
+   marker is written on that evidence, the shadow guards are removed, the
+   dashboard starts.
+4. New host: the Telegram worker starts; the container host units, the timers
+   and the per-bank drop-ins are installed; `backup.env` loses its socket
+   settings; the same timers the old host had are enabled; the backup runs
+   once and its row is shown.
+
+**Rollback**, for as long as the old host is untouched: on the new host
+`systemctl disable --now` the timers listed in its `timers.target.wants`,
+`docker compose stop telegram app`; on the old host
+`systemctl enable --now $(cat /etc/private-finances/cutover-disabled-units)`.
+Anything the household did on the new host after the cutover — a
+classification, an import — exists only there; dump it with the container
+backup and load it on the old host before enabling, or accept the loss.
 
 ## Security, stated plainly
 
