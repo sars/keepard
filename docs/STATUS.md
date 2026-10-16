@@ -9,12 +9,16 @@ release with `origin/main` rather than reconstructing it by hand.
 
 ## Deployed release
 
-**Pending, not deployed: the container deployment (PF-022).** The image, the
-Compose stack, the edge proxy stack and the host units exist and the Container
-workflow builds and starts the stack in CI. Nothing on the server has changed;
-the release script for containers, the backup path, the shadow installation on
-the destination server and the cutover remain, in that order, listed in
-[containers](containers.md).
+**The container deployment (PF-022) has a shadow, not a cutover.** The image,
+the Compose stack, the edge proxy stack, the host units, the container release
+script and the container backup exist and are exercised by the Container
+workflow. On 16 October 2026 a shadow of the application was installed on the
+destination server from a direct copy of the configuration and a dump of the
+live database: dashboard and database healthy at release a38d35ae, schema 68,
+4,424 transactions, 52 tables matching the live host except one import's rows.
+It runs no timers, no Telegram worker and no backup. The live server is
+unchanged. Remaining, in order: the edge proxy and the domain, the bank
+provider's redirect, the cutover; see [containers](containers.md).
 
 **023a2247b2c77828024fc2414716746b13a00546**, live since October 4, 2026 at
 schema version 68, deployed with `deploy/release.sh`: both services active,
