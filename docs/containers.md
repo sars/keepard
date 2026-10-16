@@ -224,11 +224,18 @@ or poll Telegram at the same time; the order below exists for that reason.
 3. **Keys that know the old server's address.** The Binance read-only key
    used by the assets feed is restricted to the server's address
    ([credentials](credentials.md)); the owner added the new server's address
-   to it on 17 October 2026, keeping the old one until after the cutover. Checked on 17 October 2026 and found unrestricted by
-   address: the backup bucket's IAM policy (scoped to the bucket, no source
-   condition), Monobank's personal tokens, the IBKR Flex token, the OpenAI
-   key and the Telegram bot. Enable Banking knows the redirect URL, not the
-   address; that is the next item.
+   to it on 17 October 2026, keeping the old one until after the cutover, and
+   the feed check from the new server then read Binance successfully. **The
+   IBKR Flex Web Service token is restricted by address too**: the same check
+   from the new server fails with the service's error 1013 while the old
+   server reads the broker, and nothing in this repository had recorded the
+   restriction. The owner adds the new address in Client Portal before
+   cutover. The proof is one command on the new host, writing nothing:
+   `docker compose --profile tools run --rm worker node dist/src/holdings-snapshot-cli.js --check`.
+   Checked and found unrestricted by address: the backup bucket's IAM policy
+   (scoped to the bucket, no source condition), Monobank's personal tokens,
+   the OpenAI key and the Telegram bot. Enable Banking knows the redirect URL,
+   not the address; that is the next item.
 4. **Bank provider.** Register the new callback,
    `https://<new domain>/connections/enablebanking/callback`, in the Enable
    Banking control panel alongside the old one ([bank consent](bank-consent.md)).
