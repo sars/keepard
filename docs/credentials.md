@@ -134,6 +134,12 @@ as not configured rather than failing:
 - `binance-api-key` and `binance-api-secret` — a read-only key restricted to the
   server's address
 
+**The IBKR Flex token is restricted to the server's address**, like the
+Binance key: from any other machine the Flex Web Service answers error 1013
+and the snapshot reports the feed as failed with `flex_1013`. A new host is
+added in Client Portal's Flex Web Service configuration before it may read
+the broker; discovered on 17 October 2026 from the shadow server.
+
 **The IBKR Flex token expires yearly.** Record the expiry Client Portal prints
 in `IBKR_FLEX_TOKEN_EXPIRES_AT` in `app.env`, so the 5/2/1-day reminders in
 [expiry monitoring](credential-health.md) arrive before the weekly snapshot
