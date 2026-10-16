@@ -73,7 +73,7 @@ development convenience, but nothing depends on it.
   same; the commands do not. That script is not written yet.
 - The backup job dumps through `docker compose exec db pg_dump` instead of the
   socket, and the restore target is the container. restic and the bucket are
-  unchanged.
+  unchanged. Done: `BACKUP_DATABASE_VIA=compose` in `scripts/backup.sh`.
 - Image builds leave BuildKit cache behind. On the destination server 76 GB of
   it had accumulated from the other project before this decision; pruning it
   becomes part of the release script, like the release-tree retention today.
