@@ -30,6 +30,10 @@ type Run = {
   sql: string[];
   /** restic's argv, one entry per invocation. */
   resticCalls: string[];
+  /** docker's argv, one entry per invocation; empty over the socket. */
+  dockerCalls: string[];
+  /** runuser's argv, one entry per invocation; empty through the container. */
+  runuserCalls: string[];
   /** Octal mode of the working directory when pg_dump was invoked. */
   workMode: string;
   uploaded: boolean;
@@ -44,6 +48,10 @@ function runBackup(stubs: {
   psqlExits?: number;
   configExits?: number;
   configPaths?: string;
+  /** Through the container: BACKUP_DATABASE_VIA=compose with a stack present. */
+  compose?: boolean;
+  /** Through the container, but with no compose.yaml where PF_COMPOSE_DIR points. */
+  composeMissing?: boolean;
 }): Run {
   const home = mkdtempSync(join(tmpdir(), 'pf-backup-'));
   const bin = join(home, 'bin');
@@ -54,6 +62,13 @@ function runBackup(stubs: {
   const configUploaded = join(home, 'config-uploaded');
   const resticLog = join(home, 'restic.log');
   const workModeLog = join(home, 'work-mode.log');
+  const dockerLog = join(home, 'docker.log');
+  const runuserLog = join(home, 'runuser.log');
+  const stack = join(home, 'stack');
+  mkdirSync(stack);
+  if (stubs.compose && !stubs.composeMissing) {
+    writeFileSync(join(stack, 'compose.yaml'), 'services: {}\n');
+  }
   const stub = (name: string, body: string) => {
     const path = join(bin, name);
     writeFileSync(path, `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
@@ -98,10 +113,32 @@ JSON`,
   // `runuser -u <user> -- cmd …` becomes plain `cmd …`.
   stub(
     'runuser',
-    `while [ "$1" = -u ] || [ "$1" = -- ]; do
+    `printf '%s\\0' "$@" >> ${JSON.stringify(runuserLog)}
+printf '\\n---\\n' >> ${JSON.stringify(runuserLog)}
+while [ "$1" = -u ] || [ "$1" = -- ]; do
   if [ "$1" = -u ]; then shift 2; else shift; fi
 done
 exec "$@"`,
+  );
+  // Through the container, both PostgreSQL calls arrive as
+  // `docker compose --project-directory <dir> exec -T db <tool> …`. pg_dump
+  // then writes to stdout, because the container cannot see this filesystem;
+  // psql is handed on to the stub above so that argv and stdin are recorded
+  // the same way as over the socket.
+  stub(
+    'docker',
+    `printf '%s\\0' "$@" >> ${JSON.stringify(dockerLog)}
+printf '\\n---\\n' >> ${JSON.stringify(dockerLog)}
+while [ "$#" -gt 0 ] && [ "$1" != db ]; do shift; done
+shift
+case "$1" in
+pg_dump)
+  if [ "${stubs.dumpExits ?? 0}" != "0" ]; then echo 'connection refused' >&2; exit ${stubs.dumpExits ?? 0}; fi
+  head -c ${dumpBytes} /dev/zero
+  ;;
+psql) exec psql "\${@:2}" ;;
+*) echo "unexpected tool $1" >&2; exit 99 ;;
+esac`,
   );
   // Real `install` would refuse to chown to a user that does not exist here.
   stub(
@@ -130,6 +167,9 @@ exit ${stubs.psqlExits ?? 0}`,
       RESTIC_REPOSITORY: 's3:example.invalid/bucket',
       RESTIC_PASSWORD_FILE: '/dev/null',
       BACKUP_CONFIG_PATHS: stubs.configPaths ?? home,
+      ...(stubs.compose
+        ? { BACKUP_DATABASE_VIA: 'compose', PF_COMPOSE_DIR: stack }
+        : {}),
     },
   });
   let recorded: string[] = [];
@@ -170,6 +210,15 @@ exit ${stubs.psqlExits ?? 0}`,
   } catch {
     resticCalls = [];
   }
+  const calls = (path: string) => {
+    try {
+      return readFileSync(path, 'utf8')
+        .split('\n---\n')
+        .filter((entry) => entry.trim().length > 0);
+    } catch {
+      return [];
+    }
+  };
   const run = {
     status: result.status ?? -1,
     stdout: result.stdout,
@@ -177,6 +226,8 @@ exit ${stubs.psqlExits ?? 0}`,
     recorded,
     sql,
     resticCalls,
+    dockerCalls: calls(dockerLog),
+    runuserCalls: calls(runuserLog),
     workMode,
     uploaded: exists(uploaded),
     configUploaded: exists(configUploaded),
@@ -348,4 +399,51 @@ test('a good backup that cannot be written down is still a good backup', () => {
   assert.equal(run.uploaded, true);
   assert.match(run.stderr, /"event":"backup_status_unrecorded"/);
   assert.match(run.stdout, /"recorded":false/);
+});
+
+test('through the container, the dump and the status row go through docker compose exec', () => {
+  // The container host has no socket to peer-authenticate over, so both
+  // PostgreSQL calls run inside the db container as the owner role, with the
+  // database named explicitly; the service user is never dropped to.
+  const run = runBackup({ compose: true });
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.uploaded, true);
+  assert.equal(run.runuserCalls.length, 0);
+  assert.equal(run.dockerCalls.length, 2);
+  const dump = run.dockerCalls[0]!;
+  assert.match(
+    dump,
+    /^compose\0--project-directory\0.*\/stack\0exec\0-T\0db\0pg_dump\0/,
+  );
+  assert.match(
+    dump,
+    /--username=private-finances\0--dbname=private_finances_test\0/,
+  );
+  assert.match(dump, /--format=custom\0--no-owner\0--no-acl\0$/);
+  assert.doesNotMatch(dump, /--file=/);
+  assert.equal(run.recorded.length, 1);
+  assert.match(
+    run.recorded[0]!,
+    /^--username=private-finances\0--dbname=private_finances_test\0/,
+  );
+  assert.match(run.recorded[0]!, /outcome=succeeded/);
+  assert.match(run.recorded[0]!, /size=4096/);
+  assert.match(run.sql[0]!, /INSERT INTO backup_runs/);
+});
+
+test('through the container, a failed dump is still recorded and never uploaded', () => {
+  const run = runBackup({ compose: true, dumpExits: 2 });
+  assert.notEqual(run.status, 0);
+  assert.equal(run.uploaded, false);
+  assert.match(run.stderr, /"stage":"dump"/);
+  assert.match(run.recorded[0]!, /outcome=failed/);
+});
+
+test('through the container with no stack to reach, the run refuses before touching anything', () => {
+  const run = runBackup({ compose: true, composeMissing: true });
+  assert.equal(run.status, 78);
+  assert.match(run.stderr, /no_compose_stack/);
+  assert.equal(run.dockerCalls.length, 0);
+  assert.equal(run.uploaded, false);
+  assert.equal(run.recorded.length, 0);
 });

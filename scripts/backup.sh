@@ -3,14 +3,18 @@
 # needed to rebuild the machine around it. Both go to one restic repository in a
 # private Amazon S3 bucket, in one run, under one credential. See docs/backups.md.
 #
-# PostgreSQL connection uses PGHOST/PGPORT/PGUSER/PGDATABASE.
-# Restic credentials are supplied through a restricted service EnvironmentFile.
+# PostgreSQL connection uses PGHOST/PGPORT/PGUSER/PGDATABASE on the systemd
+# host. On the container host, BACKUP_DATABASE_VIA=compose makes the dump and
+# the status row go through `docker compose exec db` in PF_COMPOSE_DIR instead;
+# see docs/containers.md. Restic credentials are supplied through a restricted
+# service EnvironmentFile either way.
 #
 # **This runs as root**, because the configuration worth saving is the part no
 # unprivileged process may read: the bank keys, the tokens, the environment
 # files. The database is not touched as root — `pg_dump` and `psql` drop to the
 # service user, whose name is the credential, because that connection is
-# peer-authenticated over the unix socket.
+# peer-authenticated over the unix socket; inside the database container the
+# same user name is the owner role, and the connection stays local to it.
 #
 # Every attempt, successful or not, is recorded in the application's own
 # backup_runs table so that the operations page can say whether the household's
@@ -25,6 +29,48 @@ umask 077
 : "${RESTIC_PASSWORD_FILE:?RESTIC_PASSWORD_FILE required}"
 destination="${BACKUP_DESTINATION_LABEL:-amazon-s3}"
 dump_user="${BACKUP_DUMP_USER:-private-finances}"
+via="${BACKUP_DATABASE_VIA:-socket}"
+case $via in
+socket) ;;
+compose)
+  compose_dir="${PF_COMPOSE_DIR:-/opt/private-finances}"
+  [ -f "$compose_dir/compose.yaml" ] || {
+    echo '{"event":"backup_failed","stage":"configuration","reason":"no_compose_stack"}' >&2
+    exit 78
+  }
+  ;;
+*)
+  echo '{"event":"backup_failed","stage":"configuration","reason":"unknown_database_via"}' >&2
+  exit 78
+  ;;
+esac
+
+# One door to the database for both the dump and the status row. Over the
+# socket the command drops to the service user and libpq reads PG* from the
+# environment; through compose it runs inside the `db` container as that same
+# role, with the database named explicitly because the container does not see
+# this process's environment. Stdin and stdout pass straight through.
+database() {
+  local tool="$1"
+  shift
+  case $via in
+  socket) runuser -u "$dump_user" -- "$tool" "$@" ;;
+  compose)
+    docker compose --project-directory "$compose_dir" exec -T db \
+      "$tool" --username="$dump_user" --dbname="$PGDATABASE" "$@"
+    ;;
+  esac
+}
+# The dump differs in one respect: over the socket pg_dump writes the file
+# itself, as the service user, which is why the work directory below is made
+# crossable for it; through compose the container cannot see this filesystem,
+# so the dump arrives on stdout and root writes it.
+dump_database() {
+  case $via in
+  socket) database pg_dump --format=custom --no-owner --no-acl --file="$1" ;;
+  compose) database pg_dump --format=custom --no-owner --no-acl >"$1" ;;
+  esac
+}
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 backup_work=$(mktemp -d)
 trap 'rm -rf -- "$backup_work"' EXIT
@@ -42,7 +88,7 @@ record() {
   # from stdin psql expands them itself, quoting each value as a literal, which
   # is what keeps a value out of the SQL grammar. ON_ERROR_STOP is what makes a
   # rejected statement an exit code rather than a silent success.
-  if runuser -u "$dump_user" -- psql --no-psqlrc --quiet --tuples-only --no-align \
+  if database psql --no-psqlrc --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 \
     --set=destination="$destination" --set=outcome="$outcome" \
     --set=stage="$stage" --set=started="$started_at" \
@@ -96,6 +142,8 @@ PY
 if [ -n "${BACKUP_CONFIG_PATHS:-}" ]; then
   read -r -a candidates <<<"$BACKUP_CONFIG_PATHS"
 else
+  # The last four exist only on the container host: the stack's own files,
+  # the edge proxy's configuration, and the certificates its Caddy holds.
   candidates=(
     /etc/private-finances
     /etc/systemd/system/private-finances*.service
@@ -103,6 +151,10 @@ else
     /etc/systemd/system/private-finances*.timer.d
     /etc/caddy
     /etc/postgresql
+    /opt/private-finances/.env
+    /opt/private-finances/compose.yaml
+    /opt/edge
+    /var/lib/docker/volumes/edge_caddy_data
   )
 fi
 config_paths=()
@@ -110,18 +162,24 @@ for candidate in "${candidates[@]}"; do
   [ -e "$candidate" ] && config_paths+=("$candidate")
 done
 
-# The dump is written by the service user, so it gets a directory of its own
-# that the service user owns; root reads it back regardless. The parent has to
-# become traversable for that to be reachable at all — `mktemp -d` makes it
-# 0700 root, and a directory the service user cannot enter is a directory it
-# cannot write into, whoever owns what is inside. 0711 grants the crossing and
-# not the listing, so the error and result files beside it stay unreadable.
-chmod 0711 "$backup_work"
-install -d -o "$dump_user" -g "$dump_user" -m 700 "$backup_work/dump"
+# Over the socket the dump is written by the service user, so it gets a
+# directory of its own that the service user owns; root reads it back
+# regardless. The parent has to become traversable for that to be reachable at
+# all — `mktemp -d` makes it 0700 root, and a directory the service user cannot
+# enter is a directory it cannot write into, whoever owns what is inside. 0711
+# grants the crossing and not the listing, so the error and result files beside
+# it stay unreadable. Through compose root writes the dump itself and the
+# directory stays private to it.
+case $via in
+socket)
+  chmod 0711 "$backup_work"
+  install -d -o "$dump_user" -g "$dump_user" -m 700 "$backup_work/dump"
+  ;;
+compose) mkdir -m 700 "$backup_work/dump" ;;
+esac
 
 # Diagnostics stay private: pg_dump/restic errors may contain connection details.
-if ! runuser -u "$dump_user" -- pg_dump --format=custom --no-owner --no-acl \
-  --file="$backup_work/dump/database.dump" 2>"$backup_work/error"; then
+if ! dump_database "$backup_work/dump/database.dump" 2>"$backup_work/error"; then
   echo '{"event":"backup_failed","stage":"dump"}' >&2
   record failed dump '' ''
   exit 1

@@ -13,7 +13,7 @@ deployed: the live server still runs the systemd units in [running](running.md).
 | `deploy/edge/` (the proxy stack) | written; not run anywhere |
 | `deploy/containers/` (host units for the timers) | written; not installed anywhere |
 | `deploy/container-release.sh` and `container-release-remote.sh` | written; the server side is rehearsed in CI on every change against the stack it just started; never run against a server |
-| Backup through the container | not written |
+| Backup through the container (`scripts/backup.sh` with `BACKUP_DATABASE_VIA=compose`, `deploy/containers/private-finances-backup.service`) | written; exercised in CI against a local restic repository; never run on a host ([backups](backups.md)) |
 | Showcase in a container | not planned yet; it stays on the old host until decided |
 | Shadow installation on the destination server | not started |
 | Cutover | not started |

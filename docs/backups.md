@@ -116,6 +116,43 @@ Nothing below needs the owner once the five values exist.
 The timer runs daily at 03:30 UTC with up to fifteen minutes of randomised
 delay, and `Persistent=true` catches up a run the server slept through.
 
+## On the container host
+
+The same script, the same bucket, the same two snapshots; what changes is the
+door to the database, because peer authentication over a unix socket does not
+cross a container boundary. The host unit in
+`deploy/containers/private-finances-backup.service` sets
+`BACKUP_DATABASE_VIA=compose` and `PF_COMPOSE_DIR=/opt/private-finances`, and
+the script then runs `pg_dump` and the status-row `psql` inside the `db`
+container, as the owner role `private-finances`, through
+`docker compose exec`. Through that door the dump arrives on stdout and root
+writes it into its private work directory, because the container cannot see
+the host's filesystem. Over the socket nothing changes: pg_dump still writes
+the file itself as the service user, exactly as before.
+
+`/etc/private-finances/backup.env` on that host holds `PGDATABASE`,
+`RESTIC_REPOSITORY`, `RESTIC_PASSWORD_FILE`, `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY`. There is no `PGHOST`, no `PGUSER` and still no
+database password. The timer is the same `private-finances-backup.timer`; the
+unit runs as root with `ProtectSystem=full` rather than `strict`, because the
+Docker client needs the socket under `/run`.
+
+The configuration snapshot gains four paths when they exist: the stack's
+`.env` and `compose.yaml`, the edge proxy's directory, and the volume holding
+its certificates. A restore of the database goes into the container:
+
+```sh
+restic restore latest --tag database --target /tmp/pf-restore
+docker compose exec -T db pg_restore --exit-on-error --no-owner --no-acl \
+  -U private-finances -d private_finances < /tmp/pf-restore/database.dump
+```
+
+The Container workflow exercises this path on every change: it starts the
+stack, runs the script against a local restic repository and checks that two
+snapshots exist and that `backup_runs` recorded `succeeded`. The bucket itself
+is never touched from CI. **Not yet done on a real host:** the first run there
+and the restore proof, which are cutover steps in [containers](containers.md).
+
 ## What a run does
 
 One job backs up both halves of what a rebuilt machine would need: the data, and

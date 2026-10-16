@@ -213,6 +213,8 @@ install -m 644 "$build/compose.yaml" compose.yaml.next && mv -f compose.yaml.nex
 mkdir -p deploy
 install -m 644 "$build/deploy/compose.edge.yaml" deploy/compose.edge.yaml
 install -m 644 "$build/deploy/local-backup.py" deploy/local-backup.py
+mkdir -p scripts
+install -m 755 "$build/scripts/backup.sh" scripts/backup.sh
 # A unit that changed in the repository takes effect at the next release;
 # installing a new one, and the per-bank timer drop-ins, stay deliberate acts.
 changed=0
