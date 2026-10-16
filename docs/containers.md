@@ -18,7 +18,7 @@ deployed: the live server still runs the systemd units in [running](running.md).
 | Restore proof on the new host from the bucket | not done; the shadow was loaded from a direct dump, not from the bucket |
 | Shadow installation on the destination server | **done 16 October 2026**; see "The shadow, as installed" below |
 | Edge takeover and the domain | **done 17 October 2026**; the other project's change is on its `main` and marked as its deployed commit |
-| Cutover | `deploy/cutover-to-containers.sh`, written 17 October 2026; its run is recorded under "The cutover" below once done |
+| Cutover | **done 17 October 2026, 00:40–01:15 Riga time**; see "The cutover, as it went" below |
 
 ## The stack
 
@@ -289,6 +289,38 @@ the right rollback depends on where it stopped:
    and the per-bank drop-ins are installed; `backup.env` loses its socket
    settings; the same timers the old host had are enabled; the backup runs
    once and its row is shown.
+
+### The cutover, as it went
+
+Four attempts on the night of 16–17 October 2026, each stopping where it
+said it would and none undoing anything; the household was without a live
+system for about fifty minutes in between, longer than planned.
+
+1. The first run (the owner's, from this script) waited five minutes for an
+   import on the old host that did not finish and stopped with the old host
+   already disabled. The script now accepts an old host that an earlier
+   attempt stopped and never shortens the recorded unit list.
+2. The second run reached step 3, emptied the new database and loaded
+   nothing: the remote steps travelled on stdin and the first `docker compose`
+   command swallowed the rest. Remote steps now travel as arguments and the
+   stdin-reading commands get `</dev/null` besides.
+3. The third and fourth runs stopped in preflight on checks that assumed a
+   fresh start (the dashboard answering; the Telegram guard still in place).
+   Both checks now tolerate a resumed run.
+4. The fifth run went through: dump of 8.3 MB, 13 markers, the real
+   `telegram.env`, 5 bank-session files; restored with `--exit-on-error`;
+   all 52 tables' row counts equal on both hosts; marker written; dashboard
+   ready at release a0bd82a9; Telegram worker polling within twenty seconds;
+   11 timers enabled. The five Enable Banking imports succeeded at their
+   first firing with the consents carried over, so no re-approval was needed
+   that night; the two Monobank imports were still running when this was
+   written.
+
+The backup's first run as a service failed at the dump stage, although the
+same script succeeds by hand: `COMPOSE_FILE` in the stack's `.env` names its
+files relative to the current directory, and a service starts in `/`. The
+script now enters the compose directory and the unit sets
+`WorkingDirectory`; both reach the host with the next release.
 
 **Rollback**, for as long as the old host is untouched: on the new host
 `systemctl disable --now` the timers listed in its `timers.target.wants`,

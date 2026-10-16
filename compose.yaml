@@ -100,6 +100,10 @@ services:
   telegram:
     <<: *application
     command: ['node', 'dist/src/telegram-cli.js']
+    # The image's health check asks the dashboard's HTTP port; this process
+    # has none, and a check that can only fail would make `up --wait` fail.
+    healthcheck:
+      disable: true
     restart: unless-stopped
     env_file:
       - ${PF_CONFIG_DIR:-/etc/private-finances}/app.env
@@ -121,6 +125,8 @@ services:
   worker:
     <<: *application
     profiles: [tools]
+    healthcheck:
+      disable: true
     restart: 'no'
     env_file:
       - ${PF_CONFIG_DIR:-/etc/private-finances}/app.env

@@ -32,6 +32,8 @@ type Run = {
   resticCalls: string[];
   /** docker's argv, one entry per invocation; empty over the socket. */
   dockerCalls: string[];
+  /** The directory docker was invoked from, one entry per invocation. */
+  dockerCwds: string[];
   /** runuser's argv, one entry per invocation; empty through the container. */
   runuserCalls: string[];
   /** Octal mode of the working directory when pg_dump was invoked. */
@@ -63,6 +65,7 @@ function runBackup(stubs: {
   const resticLog = join(home, 'restic.log');
   const workModeLog = join(home, 'work-mode.log');
   const dockerLog = join(home, 'docker.log');
+  const dockerCwdLog = join(home, 'docker-cwd.log');
   const runuserLog = join(home, 'runuser.log');
   const stack = join(home, 'stack');
   mkdirSync(stack);
@@ -129,6 +132,7 @@ exec "$@"`,
     'docker',
     `printf '%s\\0' "$@" >> ${JSON.stringify(dockerLog)}
 printf '\\n---\\n' >> ${JSON.stringify(dockerLog)}
+pwd >> ${JSON.stringify(dockerCwdLog)}
 while [ "$#" -gt 0 ] && [ "$1" != db ]; do shift; done
 shift
 case "$1" in
@@ -227,6 +231,13 @@ exit ${stubs.psqlExits ?? 0}`,
     sql,
     resticCalls,
     dockerCalls: calls(dockerLog),
+    dockerCwds: (() => {
+      try {
+        return readFileSync(dockerCwdLog, 'utf8').trim().split('\n');
+      } catch {
+        return [];
+      }
+    })(),
     runuserCalls: calls(runuserLog),
     workMode,
     uploaded: exists(uploaded),
@@ -411,10 +422,11 @@ test('through the container, the dump and the status row go through docker compo
   assert.equal(run.runuserCalls.length, 0);
   assert.equal(run.dockerCalls.length, 2);
   const dump = run.dockerCalls[0]!;
-  assert.match(
-    dump,
-    /^compose\0--project-directory\0.*\/stack\0exec\0-T\0db\0pg_dump\0/,
-  );
+  // Invoked from inside the stack directory, never pointed at it: the
+  // stack's COMPOSE_FILE names its files relative to the current directory.
+  assert.match(dump, /^compose\0exec\0-T\0db\0pg_dump\0/);
+  assert.equal(run.dockerCwds.length, 2);
+  for (const cwd of run.dockerCwds) assert.match(cwd, /\/stack$/);
   assert.match(
     dump,
     /--username=private-finances\0--dbname=private_finances_test\0/,

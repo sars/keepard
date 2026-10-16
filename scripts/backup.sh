@@ -56,8 +56,11 @@ database() {
   case $via in
   socket) runuser -u "$dump_user" -- "$tool" "$@" ;;
   compose)
-    docker compose --project-directory "$compose_dir" exec -T db \
-      "$tool" --username="$dump_user" --dbname="$PGDATABASE" "$@"
+    # From inside the directory, not through --project-directory: a
+    # COMPOSE_FILE in the stack's .env names its files relative to the
+    # current directory, and the first run as a service, from /, found none.
+    (cd "$compose_dir" && docker compose exec -T db \
+      "$tool" --username="$dump_user" --dbname="$PGDATABASE" "$@")
     ;;
   esac
 }

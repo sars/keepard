@@ -30,26 +30,42 @@ sha=${3:-}
 here=$(cd "$(dirname "$0")" && pwd)
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 step() { printf '\n=== %s ===\n' "$1"; }
-on_old() { ssh -o BatchMode=yes "$old" "sudo -n bash -s" ; }
-on_new() { ssh -o BatchMode=yes "$new" "bash -s" ; }
+# The remote script travels as an argument, not on stdin: `docker compose`
+# and `psql` read stdin when they have one, and a script fed through `bash -s`
+# would be swallowed by its own first such command — which is exactly what
+# happened to the first attempt's step 3.
+on_old() { local script; script=$(cat); ssh -o BatchMode=yes "$old" "sudo -n bash -c $(printf %q "$script")"; }
+on_new() { local script; script=$(cat); ssh -o BatchMode=yes "$new" "bash -c $(printf %q "$script")"; }
 quiet() { grep -v -i -E 'perl: warning|locale|LANGUAGE|LC_ALL|LC_CTYPE|LANG =|are supported' || true; }
 counts_sql="select format('select %L, count(*) from %I;', tablename, tablename) from pg_tables where schemaname='public' order by 1"
 
 step 'preflight'
-new_release=$(ssh -o BatchMode=yes "$new" "curl -fsS http://127.0.0.1:3300/health/ready" | python3 -c 'import json,sys; print(json.load(sys.stdin)["release"])')
+# The dashboard answers with its release; after a stopped attempt it may be
+# down, and then the stack's own .env says which image a start would run.
+new_release=$(ssh -o BatchMode=yes "$new" "curl -fsS http://127.0.0.1:3300/health/ready 2>/dev/null || grep '^PF_RELEASE=' /opt/private-finances/.env | cut -d= -f2" |
+  python3 -c 'import json,sys; t=sys.stdin.read().strip(); print(json.loads(t)["release"] if t.startswith("{") else t)')
 [ "$new_release" = "$sha" ] || { echo "the new host runs $new_release, not $sha" >&2; exit 65; }
 on_new <<'REMOTE'
 set -e
 cd /opt/private-finances
 grep -q '^PF_SERVICES=app$' .env || { echo 'the new host is not in shadow configuration (PF_SERVICES=app missing)' >&2; exit 65; }
-grep -q '^TELEGRAM_BOT_TOKEN_FILE=/nonexistent' /etc/private-finances/telegram.env || { echo 'the shadow Telegram guard is missing' >&2; exit 65; }
+# The Telegram guard in telegram.env is replaced by step 2, so a resumed run
+# no longer finds it; PF_SERVICES=app above is the guard that lasts until
+# step 3 and is the one checked.
 test ! -d /etc/systemd/system/timers.target.wants || ! ls /etc/systemd/system/timers.target.wants/ | grep -q '^private-finances' || { echo 'the new host already has private-finances timers' >&2; exit 65; }
 docker compose ps --format '{{.Service}} {{.State}}'
 REMOTE
 on_old <<'REMOTE' | quiet
 set -e
-systemctl is-active --quiet private-finances.service || { echo 'the old dashboard is not running; is this the right host?' >&2; exit 65; }
-echo "old host: $(ls /etc/systemd/system/timers.target.wants/ | grep -c '^private-finances') private-finances timers enabled"
+# A re-run after a stopped attempt finds the old host already quiet; the list
+# of what the first attempt disabled is the evidence that this is still the
+# right host.
+if [ -f /etc/private-finances/cutover-disabled-units ]; then
+  echo "old host: already stopped by an earlier attempt ($(wc -l < /etc/private-finances/cutover-disabled-units) units recorded)"
+else
+  systemctl is-active --quiet private-finances.service || { echo 'the old dashboard is not running; is this the right host?' >&2; exit 65; }
+  echo "old host: $(ls /etc/systemd/system/timers.target.wants/ | grep -c '^private-finances') private-finances timers enabled"
+fi
 REMOTE
 
 step '1. old host: stopping imports, the worker and the dashboard'
@@ -57,9 +73,10 @@ on_old <<'REMOTE' | quiet
 set -e
 units=$(ls /etc/systemd/system/timers.target.wants/ | grep '^private-finances' || true)
 units="$units private-finances-telegram.service private-finances.service"
-printf '%s\n' $units > /etc/private-finances/cutover-disabled-units
+# The list is written once: a re-run must not shorten it to what was left.
+[ -f /etc/private-finances/cutover-disabled-units ] || printf '%s\n' $units > /etc/private-finances/cutover-disabled-units
 # shellcheck disable=SC2086
-systemctl disable --now $units >/dev/null 2>&1
+systemctl disable --now $units >/dev/null 2>&1 || true
 for attempt in $(seq 1 60); do
   pgrep -f '[s]ync-cli.js' >/dev/null || break
   sleep 5
@@ -83,9 +100,9 @@ step '3. new host: loading the dump into a fresh database'
 on_new <<REMOTE
 set -e
 cd /opt/private-finances
-docker compose stop app >/dev/null 2>&1
+docker compose stop app >/dev/null 2>&1 </dev/null
 docker compose exec -T db psql -U private-finances -d postgres -v ON_ERROR_STOP=1 -q \
-  -c 'drop database if exists private_finances' -c 'create database private_finances' >/dev/null
+  -c 'drop database if exists private_finances' -c 'create database private_finances' >/dev/null </dev/null
 docker compose exec -T db pg_restore --exit-on-error --no-owner --no-acl -U private-finances -d private_finances < /var/lib/private-finances/predeploy/cutover-$stamp.dump
 echo 'restored'
 REMOTE
@@ -106,7 +123,7 @@ printf 'local-restore-verified\n' > /etc/private-finances/local-restore-verified
 chmod 644 /etc/private-finances/local-restore-verified
 # The shadow guards go: releases recreate both services again from here on.
 sed -i '/^PF_SERVICES=app$/d' .env
-docker compose up -d --wait --wait-timeout 180 app >/dev/null 2>&1
+docker compose up -d --wait --wait-timeout 180 app >/dev/null 2>&1 </dev/null
 curl -fsS http://127.0.0.1:3300/health/ready; echo
 REMOTE
 
@@ -119,10 +136,10 @@ rm -f "/tmp/pf-cutover-timers-$stamp"
 on_new <<'REMOTE'
 set -e
 cd /opt/private-finances
-docker compose up -d --wait --wait-timeout 60 telegram >/dev/null 2>&1 || true
+docker compose up -d --wait --wait-timeout 60 telegram >/dev/null 2>&1 </dev/null || true
 sleep 20
-docker compose ps --format '{{.Service}} {{.State}} {{.Status}}'
-docker compose logs --no-color --tail 5 telegram | cut -c1-160
+docker compose ps --format '{{.Service}} {{.State}} {{.Status}}' </dev/null
+docker compose logs --no-color --tail 5 telegram </dev/null | cut -c1-160
 # Units: the container ExecStart variants, the timers, and the per-bank drop-ins.
 install -m 644 /tmp/pf-units/containers/*.service /etc/systemd/system/
 install -m 644 /tmp/pf-units/*.timer /etc/systemd/system/
@@ -145,8 +162,8 @@ systemctl daemon-reload
 systemctl enable --now $(cat /tmp/pf-units/timers-to-enable) >/dev/null 2>&1
 echo "timers enabled: $(ls /etc/systemd/system/timers.target.wants/ | grep -c '^private-finances')"
 rm -rf /tmp/pf-units
-systemctl start private-finances-backup.service && echo 'backup ran' || { echo 'backup FAILED; journalctl -u private-finances-backup' >&2; }
-docker compose exec -T db psql -U private-finances -d private_finances -tAc "select outcome, coalesce(stage,'-'), size_bytes from backup_runs order by started_at desc limit 1"
+systemctl start private-finances-backup.service </dev/null && echo 'backup ran' || { echo 'backup FAILED; journalctl -u private-finances-backup' >&2; }
+docker compose exec -T db psql -U private-finances -d private_finances -tAc "select outcome, coalesce(stage,'-'), size_bytes from backup_runs order by started_at desc limit 1" </dev/null
 systemctl list-timers --no-pager --no-legend 'private-finances-*' | awk '{print $NF, "next", $1, $2, $3}' | head -12
 REMOTE
 

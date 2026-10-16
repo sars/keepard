@@ -9,18 +9,19 @@ release with `origin/main` rather than reconstructing it by hand.
 
 ## Deployed release
 
-**The container deployment (PF-022) has a shadow, not a cutover.** The image,
-the Compose stack, the edge proxy stack, the host units, the container release
-script and the container backup exist and are exercised by the Container
-workflow. On 16 October 2026 a shadow of the application was installed on the
-destination server from a direct copy of the configuration and a dump of the
-live database: dashboard and database healthy at release a38d35ae, schema 68,
-4,424 transactions, 52 tables matching the live host except one import's rows.
-It runs no timers, no Telegram worker and no backup. On 17 October 2026 the
-shared edge proxy took over HTTPS on that server for both projects and the
-shadow became reachable at its public name with a Let's Encrypt certificate.
-The live server is unchanged. Remaining, in order: the bank provider's
-redirect, the cutover; see [containers](containers.md).
+**The application moved to the container host on 17 October 2026 (PF-022).**
+It runs as a Compose stack behind a shared edge proxy at a public name, with
+its own PostgreSQL, the Telegram worker, and the timers on the host running
+jobs in containers; the release is `deploy/container-release.sh`, the first
+real run of which deployed a0bd82a9. The cutover loaded the final dump with
+all 52 tables matching the old host; the Enable Banking imports succeeded at
+their first firing with the consents carried over. Known after the cutover:
+the backup service failed its first run for a working-directory reason fixed
+in the repository and awaiting its first container release; the old host keeps
+everything, disabled, as the rollback for two weeks. Details and the rollback
+are in [containers](containers.md). Everything below this paragraph about
+`deploy/release.sh` and the systemd host describes the deployment before the
+move.
 
 **023a2247b2c77828024fc2414716746b13a00546**, live since October 4, 2026 at
 schema version 68, deployed with `deploy/release.sh`: both services active,
