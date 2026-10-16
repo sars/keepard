@@ -1,0 +1,17 @@
+# Server-side override: joins the dashboard to the shared `edge` network that the
+# proxy stack in deploy/edge creates, under a name no other project's stack
+# uses. The proxy reaches it as private-finances:3300.
+#
+#   docker compose -f compose.yaml -f deploy/compose.edge.yaml up -d
+services:
+  app:
+    networks:
+      default: {}
+      edge:
+        aliases:
+          - private-finances
+
+networks:
+  edge:
+    external: true
+    name: edge

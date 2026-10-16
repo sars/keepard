@@ -44,6 +44,18 @@ Transactions/Receipts, admin visibility defaults, spacing and query batching are
 deployed and verified in PR60, including the 35-table restore check. Evidence-based rule
 conditions and shadow evaluation remain the next separate resolver increment.
 
+## Moving to a container host (PF-022)
+
+The application is moving to a second server the owner already runs, as a
+Docker Compose stack of its own next to another project's stack, with HTTPS
+from a shared edge proxy on a public domain and without Tailscale. Decided in
+[ADR 0009](adr/0009-containers-on-a-shared-server.md) on 16 October 2026. The
+image, the stack, the edge stack and the host units are written and the stack
+is built and started in CI; the release script, the backup path, the shadow
+installation and the cutover are not done. The order of work and the cutover
+checklist, including the bank provider's redirect URL, are in
+[containers](containers.md). The systemd deployment stays live until then.
+
 ## Latest completed increment
 
 Refunds now reduce what a purchase cost instead of erasing it, partial reductions

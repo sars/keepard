@@ -9,6 +9,13 @@ release with `origin/main` rather than reconstructing it by hand.
 
 ## Deployed release
 
+**Pending, not deployed: the container deployment (PF-022).** The image, the
+Compose stack, the edge proxy stack and the host units exist and the Container
+workflow builds and starts the stack in CI. Nothing on the server has changed;
+the release script for containers, the backup path, the shadow installation on
+the destination server and the cutover remain, in that order, listed in
+[containers](containers.md).
+
 **023a2247b2c77828024fc2414716746b13a00546**, live since October 4, 2026 at
 schema version 68, deployed with `deploy/release.sh`: both services active,
 schema 68, 4,328 transactions, server tests (718 pass, 0 fail) and the migration

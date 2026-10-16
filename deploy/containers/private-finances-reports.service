@@ -1,0 +1,11 @@
+[Unit]
+Description=Private Finances scheduled reports, in a container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=PF_COMPOSE_DIR=/opt/private-finances
+WorkingDirectory=/opt/private-finances
+ExecStart=/usr/bin/docker compose --profile tools run --rm --quiet-pull worker node dist/src/report-cli.js
+TimeoutStartSec=30min

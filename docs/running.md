@@ -7,6 +7,10 @@ rebuilding the whole thing on a machine that has never seen it.
 The third is the one worth writing down, because it is the one nobody will have
 done recently when it is needed.
 
+All three describe the systemd deployment, which is what runs today. The move
+to a Compose stack on another server is designed and partly built in
+[containers](containers.md); until that cutover, this page is current.
+
 ## On a laptop, with no credentials
 
 ```sh
