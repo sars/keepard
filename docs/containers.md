@@ -10,14 +10,14 @@ deployed: the live server still runs the systemd units in [running](running.md).
 | Piece | State |
 | --- | --- |
 | `Dockerfile`, `compose.yaml`, `deploy/compose.edge.yaml` | written; built and started in CI by the Container workflow |
-| `deploy/edge/` (the proxy stack) | written for both projects; staged in `/opt/edge` on the host on 17 October 2026 with its Caddyfile validated and the `edge` network created; **not started** — ports 80 and 443 still belong to the other project's Caddy, and the dashboard's A record does not exist yet |
+| `deploy/edge/` (the proxy stack) | **running since 17 October 2026** in `/opt/edge`: it serves both projects, obtained the dashboard's certificate from Let's Encrypt within a minute, and the other project's site was unreachable for four seconds during the handover plus six during its one restart |
 | `deploy/containers/` (host units for the timers) | written; not installed anywhere |
 | `deploy/container-release.sh` and `container-release-remote.sh` | written; the server side is rehearsed in CI on every change against the stack it just started; never run against a server |
 | Backup through the container (`scripts/backup.sh` with `BACKUP_DATABASE_VIA=compose`, `deploy/containers/private-finances-backup.service`) | written; exercised in CI against a local restic repository; never run on a host ([backups](backups.md)) |
 | Showcase in a container | not planned yet; it stays on the old host until decided |
 | Restore proof on the new host from the bucket | not done; the shadow was loaded from a direct dump, not from the bucket |
 | Shadow installation on the destination server | **done 16 October 2026**; see "The shadow, as installed" below |
-| Edge takeover and the domain | waiting on two things: the owner's A record for the dashboard's name, and the owner's go on the other project's prepared change (its repository, branch `edge-proxy`, not pushed) |
+| Edge takeover and the domain | **done 17 October 2026**; the other project's change is on its `main` and marked as its deployed commit |
 | Cutover | not started |
 
 ## The stack
@@ -81,10 +81,16 @@ with its seconds of downtime, and the rollback are in
 a commit in that repository and is deployed only with the owner, as that
 repository's rules require.
 
-As of 17 October 2026 the edge is staged and validated on the host but not
-started; the shadow dashboard already has `PUBLIC_ORIGIN` set to its future
-name and is joined to the `edge` network, so starting the edge is the only
-step left on this side once the name resolves.
+The takeover happened on 17 October 2026, in the order the README gives.
+One thing went wrong on the way and was fixed within minutes: the other
+project's new compose file had lost its top-level `secrets:` line in
+preparation (a filtered read had hidden it), so its first `compose up` was
+refused by validation — which left its running app untouched and still
+reachable, exactly the failure mode the live network join was chosen for.
+The line was restored, the amended commit applied, and its app recreated
+once. Since then the shadow dashboard answers at its public name over HTTPS
+with HSTS, 200 on the sign-in page and 401 on the API without a session;
+the other project's site, its media files and its redirects answer as before.
 
 ## The timers
 
@@ -212,18 +218,13 @@ or poll Telegram at the same time; the order below exists for that reason.
 
 1. **Shadow.** Done, as described above. Still open from it: the owner signs
    in over the tunnel and compares the screens with the live dashboard.
-2. **Edge.** The owner points the new domain at the server (an A record; the
-   name is recorded outside Git with the server's addresses). Then, in one
-   sitting, the takeover in [the edge README](../deploy/edge/README.md): the
-   other project's app joins `edge` live, its Caddy stops, the edge Caddy
-   starts, both sites are checked, the other project's compose change is
-   applied. The shadow already carries the new `PUBLIC_ORIGIN` and sits on
-   `edge`.
+2. **Edge.** Done on 17 October 2026: A record, takeover, certificate. The
+   shadow is now the dashboard at its public name, still without timers,
+   Telegram or markers.
 3. **Keys that know the old server's address.** The Binance read-only key
    used by the assets feed is restricted to the server's address
-   ([credentials](credentials.md)); before cutover the owner adds the new
-   server's address to it in Binance's API management, keeping the old one
-   until afterwards. Checked on 17 October 2026 and found unrestricted by
+   ([credentials](credentials.md)); the owner added the new server's address
+   to it on 17 October 2026, keeping the old one until after the cutover. Checked on 17 October 2026 and found unrestricted by
    address: the backup bucket's IAM policy (scoped to the bucket, no source
    condition), Monobank's personal tokens, the IBKR Flex token, the OpenAI
    key and the Telegram bot. Enable Banking knows the redirect URL, not the
