@@ -2,11 +2,17 @@
 # server, in a stack of its own. Each project joins the `edge` network under a
 # distinct alias and gets a site block in the Caddyfile; nothing else is shared.
 #
-#   cp .env.example .env     # the public names, nothing secret
+#   docker network create edge        # once per host; the network belongs to
+#                                     # the host, not to any stack
+#   cp .env.example .env              # the public names, nothing secret
 #   docker compose up -d
 #
-# Certificates live in caddy_data. Losing that volume means re-issuing from
-# Let's Encrypt, which is rate-limited, so it is part of the host's backup.
+# This Caddy took over from the other project's own Caddy on this host, and
+# keeps its volumes under their old names: the certificates and its access
+# log in `hlyna_caddy_data` (losing it means re-issuing from Let's Encrypt,
+# which is rate-limited), and the read-only media volume its site block
+# serves from. The volumes are external: this stack never creates or removes
+# them.
 name: edge
 
 services:
@@ -23,6 +29,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      - hlyna_media:/srv/media:ro
     networks:
       - edge
     cap_drop:
@@ -39,8 +46,16 @@ services:
 
 networks:
   edge:
+    external: true
     name: edge
 
 volumes:
   caddy_data:
+    external: true
+    name: hlyna_caddy_data
   caddy_config:
+    external: true
+    name: hlyna_caddy_config
+  hlyna_media:
+    external: true
+    name: hlyna_media
