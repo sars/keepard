@@ -128,12 +128,15 @@ in the same order; what changed is the commands, and one source of evidence:
    schema version and the same counts the systemd release prints. The scratch
    database is dropped on every exit once it has been created.
 6. **The pause.** The enabled `private-finances-sync@` timers are stopped, the
-   Telegram worker is stopped, and a running worker container is waited for up
-   to five minutes. From the first stop on, every exit resumes both.
+   Telegram worker is stopped if it was running, and a running worker
+   container is waited for up to five minutes. From the first stop on, every
+   exit resumes what was running — and only that, so a shadow's stopped
+   worker stays stopped.
 7. **The switch.** `compose.yaml`, the edge override and the retention rule are
    installed into the compose directory; a host unit that exists and changed
    is refreshed; `PF_RELEASE` in `.env` is rewritten atomically; `app` and
-   `telegram` are recreated and waited for. If the new release does not
+   `telegram` — or only what `PF_SERVICES` in `.env` names — are recreated
+   and waited for. If the new release does not
    answer with its SHA, `.env` goes back and the previous image is brought up
    again before the script fails.
 8. **Verification** prints the release, schema version, transaction count and
@@ -202,9 +205,19 @@ script takes over from here.
   returns the sign-in page on `/` and 401 on an API call without a session.
   Memory in use: about 27 MB for the dashboard and 73 MB for the database.
 - **Not running on the shadow.** `telegram`, every timer, the backup. Nothing
-  on this host contacts a bank, Telegram or the bucket. Not verified: signing
+  on this host contacts a bank, Telegram or the bucket. Two guards keep it
+  so, added on 17 October 2026 after noticing that the bot token's path is in
+  `app.env`, which the Telegram worker also reads: the shadow's `telegram.env`
+  overrides `TELEGRAM_BOT_TOKEN_FILE` with a path that does not exist, and its
+  `.env` says `PF_SERVICES=app`, so a release recreates the dashboard only and
+  never starts the worker. Both are removed at cutover. Not verified: signing
   in and using the screens (the owner's passwords are not read by agents); the
   consent state directory was not copied and will be at cutover.
+- **Name resolution.** The host's own resolver answers SERVFAIL for the
+  broker's statement host (an Akamai-fronted name) while every public resolver
+  answers it, which made the assets feed check fail there with a transient
+  error. The stack's application containers therefore use public resolvers
+  (`dns:` in `compose.yaml`); the host and the other project are untouched.
 
 To look at it: `ssh -L 3300:127.0.0.1:3300 hlyna`, then http://localhost:3300.
 Nothing done on the shadow reaches the household: a classification made there
