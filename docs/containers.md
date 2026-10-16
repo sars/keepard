@@ -15,7 +15,8 @@ deployed: the live server still runs the systemd units in [running](running.md).
 | `deploy/container-release.sh` and `container-release-remote.sh` | written; the server side is rehearsed in CI on every change against the stack it just started; never run against a server |
 | Backup through the container (`scripts/backup.sh` with `BACKUP_DATABASE_VIA=compose`, `deploy/containers/private-finances-backup.service`) | written; exercised in CI against a local restic repository; never run on a host ([backups](backups.md)) |
 | Showcase in a container | not planned yet; it stays on the old host until decided |
-| Shadow installation on the destination server | not started |
+| Restore proof on the new host from the bucket | not done; the shadow was loaded from a direct dump, not from the bucket |
+| Shadow installation on the destination server | **done 16 October 2026**; see "The shadow, as installed" below |
 | Cutover | not started |
 
 ## The stack
@@ -146,19 +147,64 @@ Two things the systemd release does that this one does not, yet:
   check, not by a lock file. The systemd script holds one in
   `/var/lib/private-finances/deploy.lock`.
 
+## The shadow, as installed
+
+Installed on 16 October 2026 on the destination server, reached as the SSH
+alias `hlyna`. Everything below was done by hand once; the container release
+script takes over from here.
+
+- **Host.** Ubuntu 24.04, Docker 29 with Compose 2.40. Added that day:
+  `docker-buildx` (the Dockerfile's cache mounts need BuildKit, which the
+  legacy builder refuses) and `restic` 0.16.4. The other project's three
+  containers were not touched; `docker builder prune` had freed about 75 GB
+  the same day, by the owner.
+- **Account and directories.** `private-finances` with the same uid and gid
+  as on the old host (997:986), so the copied credentials kept their owners.
+  `/opt/private-finances` holds `compose.yaml`, `deploy/compose.edge.yaml`,
+  `deploy/local-backup.py`, `scripts/backup.sh` and `.env` (`PF_RELEASE`,
+  `PF_UID`, `PF_GID`; no `COMPOSE_FILE` yet, the edge is not up).
+  `/var/lib/private-finances/{consent,sync,predeploy}` as the stack expects.
+- **Configuration.** `/etc/private-finances` was copied directly from the old
+  host over SSH through the operator's machine, never stored in between, with
+  three omissions: `schedules/` is an empty directory, `telegram.env` is an
+  empty file, and `telegram.enabled` was not copied. So no timer could touch a
+  bank even if one were installed, and the Telegram worker has no token. The
+  two restore-verified markers were removed: nothing has been proved on this
+  host yet. `db.env` was created with a generated password and `DATABASE_URL`
+  in `app.env` rewritten to the container form; every other key is as on the
+  old host, including the dashboard's own Telegram and OpenAI settings — the
+  dashboard uses them only on a signed-in person's action.
+- **Image and data.** `private-finances:a38d35ae…` was built from the
+  archive of that commit on the host. A dump of the live database
+  (8.3 MB, taken 20:55 UTC) was streamed into
+  `/var/lib/private-finances/predeploy/shadow-20261016T205535Z.dump` and
+  restored with `--exit-on-error` into the fresh `db` container before the
+  dashboard first started, so the schema came from the dump, not from a
+  migration of an empty database.
+- **Verified.** `db` and `app` healthy; `/health/ready` answers with the
+  release; schema version 68; 4,424 transactions. All 52 tables were counted
+  on both hosts: identical except `bank_import_windows` and
+  `bank_sync_attempts`, each one row higher on the live host because an import
+  ran after the dump. The dashboard listens on the host's loopback only,
+  returns the sign-in page on `/` and 401 on an API call without a session.
+  Memory in use: about 27 MB for the dashboard and 73 MB for the database.
+- **Not running on the shadow.** `telegram`, every timer, the backup. Nothing
+  on this host contacts a bank, Telegram or the bucket. Not verified: signing
+  in and using the screens (the owner's passwords are not read by agents); the
+  consent state directory was not copied and will be at cutover.
+
+To look at it: `ssh -L 3300:127.0.0.1:3300 hlyna`, then http://localhost:3300.
+Nothing done on the shadow reaches the household: a classification made there
+is lost at cutover, when the database is loaded again from the final dump.
+
 ## Moving, without breaking the running system
 
 The current server keeps running throughout and stays intact for two weeks
 after the cutover as the rollback. Two instances must never import from banks
 or poll Telegram at the same time; the order below exists for that reason.
 
-1. **Shadow.** On the destination server, after `docker builder prune` has
-   freed its disk: create the private-finances account, `/opt/private-finances`
-   with `compose.yaml`, `.env`, `/etc/private-finances` restored from the
-   backup bucket ([backups](backups.md)), and the state directories. Start
-   `db` and `app` only, with no schedule markers and no `telegram.env`. Restore
-   the latest dump into `db`. Sign in over an SSH tunnel and compare the
-   figures with the live dashboard.
+1. **Shadow.** Done, as described above. Still open from it: the owner signs
+   in over the tunnel and compares the screens with the live dashboard.
 2. **Edge.** Point the new domain at the server, start the edge stack, move
    the other project's Caddy into it, start the dashboard with the edge
    override. `PUBLIC_ORIGIN` on the shadow is the new origin from here on.
