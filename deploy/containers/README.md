@@ -15,9 +15,13 @@ unit here because Compose keeps them running (`restart: unless-stopped`).
 | `private-finances-reports.service` | `node dist/src/report-cli.js` |
 | `private-finances-assets-snapshot.service` | `node dist/src/holdings-snapshot-cli.js --when=last-thursday` |
 
-`PF_COMPOSE_DIR` is where `compose.yaml` and its `.env` (PF_RELEASE, PF_UID,
-PF_GID) live on the host, `/opt/private-finances` by convention. The units run
+`PF_COMPOSE_DIR` is where `compose.yaml` and its `.env` live on the host,
+`/opt/private-finances` by convention. That `.env` carries `PF_RELEASE`,
+`PF_UID`, `PF_GID` and `COMPOSE_FILE=compose.yaml:deploy/compose.edge.yaml`,
+so every `docker compose` in that directory — a timer, the release script, an
+operator — sees the same stack. `deploy/container-release-remote.sh` refreshes
+these units when they change and rewrites `PF_RELEASE` at each switch. The units run
 as root because the Docker socket is root-equivalent; the job inside the
 container runs as the private-finances account through compose's `user:`.
 
-Status: written, not installed anywhere. See [containers](../../docs/containers.md).
+Status: written and refreshed by the release script; not installed anywhere. See [containers](../../docs/containers.md).

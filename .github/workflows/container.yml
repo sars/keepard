@@ -48,12 +48,15 @@ jobs:
           } > "$config/app.env"
           : > "$config/sync.env"
           : > "$config/telegram.env"
+          # Both ways, because the release rehearsal below runs as root and
+          # sees only the file: the way a server does.
           {
             echo "PF_CONFIG_DIR=$config"
             echo "PF_STATE_DIR=$state"
             echo "PF_UID=$(id -u)"
             echo "PF_GID=$(id -g)"
-          } >> "$GITHUB_ENV"
+          } | tee -a "$GITHUB_ENV" > .env
+          echo "PF_RELEASE=$PF_RELEASE" >> .env
       - name: Build the image
         run: docker compose build app
       - name: Start the database and the dashboard
@@ -77,9 +80,26 @@ jobs:
             fs.accessSync("/var/lib/private-finances-consent", fs.constants.W_OK);
             console.log("worker mounts in place", process.version);
           '
+      # The stack is now a running deployment of release ci-<sha>. The server
+      # side of the release script is run against it exactly as it would be on
+      # a host: as root, from an archive of the commit, with the rehearsal, the
+      # pause, the switch and the verification. Only the dashboard is
+      # recreated — the Telegram worker has no token here.
+      - name: Rehearse a release onto the running stack
+        run: |
+          git archive --format=tar.gz --output "$RUNNER_TEMP/pf.tar.gz" HEAD
+          digest=$(sha256sum "$RUNNER_TEMP/pf.tar.gz" | cut -d' ' -f1)
+          sudo env PF_COMPOSE_DIR="$PWD" PF_PREDEPLOY_DIR="$RUNNER_TEMP/predeploy" PF_SERVICES=app \
+            bash deploy/container-release-remote.sh "$GITHUB_SHA" "$RUNNER_TEMP/pf.tar.gz" "$digest"
+      - name: Confirm the released commit is what answers
+        run: |
+          curl -fsS http://127.0.0.1:3300/health/ready | tee ready.json
+          grep -q "\"release\":\"$GITHUB_SHA\"" ready.json
+          grep -q "^PF_RELEASE=$GITHUB_SHA$" .env
+          test "$(sudo ls "$RUNNER_TEMP/predeploy" | wc -l)" -eq 1
       - name: Show the dashboard log
         if: always()
         run: docker compose logs --no-color app db | tail -80
       - name: Tear the stack down
         if: always()
-        run: docker compose --profile tools down --volumes --remove-orphans
+        run: sudo docker compose --profile tools down --volumes --remove-orphans
