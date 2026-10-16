@@ -12,6 +12,7 @@ Type=oneshot
 EnvironmentFile=/etc/private-finances/backup.env
 Environment=BACKUP_DATABASE_VIA=compose
 Environment=PF_COMPOSE_DIR=/opt/private-finances
+WorkingDirectory=/opt/private-finances
 ExecStart=/bin/bash /opt/private-finances/scripts/backup.sh
 UMask=0077
 NoNewPrivileges=true
