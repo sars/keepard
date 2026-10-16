@@ -97,6 +97,24 @@ jobs:
           grep -q "\"release\":\"$GITHUB_SHA\"" ready.json
           grep -q "^PF_RELEASE=$GITHUB_SHA$" .env
           test "$(sudo ls "$RUNNER_TEMP/predeploy" | wc -l)" -eq 1
+      # The backup, through the container: a local restic repository stands in
+      # for the bucket. Two snapshots must come back — the dump and the
+      # configuration — and the run must have written its own status row.
+      - name: Back the stack up through the container
+        run: |
+          sudo apt-get install -y --no-install-recommends restic >/dev/null
+          repository="$RUNNER_TEMP/restic"
+          echo disposable-ci-only > "$RUNNER_TEMP/restic-password"
+          restic --repo "$repository" --password-file "$RUNNER_TEMP/restic-password" init >/dev/null
+          sudo env BACKUP_DATABASE_VIA=compose PF_COMPOSE_DIR="$PWD" PGDATABASE=private_finances \
+            RESTIC_REPOSITORY="$repository" RESTIC_PASSWORD_FILE="$RUNNER_TEMP/restic-password" \
+            BACKUP_CONFIG_PATHS="$PF_CONFIG_DIR" BACKUP_DESTINATION_LABEL=ci-local \
+            bash scripts/backup.sh | tee backup.json
+          grep -q '"event":"backup_completed","recorded":true,"config":true' backup.json
+          snapshots=$(restic --repo "$repository" --password-file "$RUNNER_TEMP/restic-password" snapshots --json | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
+          test "$snapshots" -eq 2
+          outcome=$(docker compose exec -T db psql -U private-finances -d private_finances -tAc "select outcome from backup_runs order by started_at desc limit 1")
+          test "$outcome" = succeeded
       - name: Show the dashboard log
         if: always()
         run: docker compose logs --no-color app db | tail -80

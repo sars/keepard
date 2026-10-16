@@ -1,0 +1,23 @@
+[Unit]
+Description=Encrypted Private Finances backup: database and server configuration, through the container
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Runs as root: the configuration it saves is what no unprivileged process may
+# read, and the Docker socket is root's. The dump itself runs inside the db
+# container as the owner role. backup.env sets BACKUP_DATABASE_VIA=compose and
+# PGDATABASE; there is no PGHOST and no database password.
+EnvironmentFile=/etc/private-finances/backup.env
+Environment=BACKUP_DATABASE_VIA=compose
+Environment=PF_COMPOSE_DIR=/opt/private-finances
+ExecStart=/bin/bash /opt/private-finances/scripts/backup.sh
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+CacheDirectory=private-finances-restic
+Environment=RESTIC_CACHE_DIR=/var/cache/private-finances-restic
+TimeoutStartSec=1h
