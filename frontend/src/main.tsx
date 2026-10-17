@@ -245,9 +245,18 @@ function App() {
                   {identity ? owners[identity.actor].name : 'Connecting…'}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {identity?.mode === 'demo'
-                    ? 'Demo workspace'
-                    : 'Private workspace'}
+                  {identity?.mode === 'demo' ? (
+                    <>
+                      Demo workspace ·{' '}
+                      {/* The refill page is demo-only and served by the
+                          server, not a screen of the app, so a plain link. */}
+                      <a className="underline" href="/showcase/reseed">
+                        refill
+                      </a>
+                    </>
+                  ) : (
+                    'Private workspace'
+                  )}
                 </div>
               </div>
               {/* A self-signed-in demo has nothing to sign out of. */}
