@@ -14,6 +14,7 @@ unit here because Compose keeps them running (`restart: unless-stopped`).
 | `private-finances-fx-sync.service` | `node dist/src/fx-sync-cli.js` |
 | `private-finances-reports.service` | `node dist/src/report-cli.js` |
 | `private-finances-assets-snapshot.service` | `node dist/src/holdings-snapshot-cli.js --when=last-thursday` |
+| `private-finances-showcase-reseed.path` and `.service` | `scripts/reseed-showcase.mjs` in the `showcase-reseed` service, with the showcase stopped around it, when the reseed page leaves a request file under `PF_STATE_DIR/showcase` |
 
 `PF_COMPOSE_DIR` is where `compose.yaml` and its `.env` live on the host,
 `/opt/private-finances` by convention. That `.env` carries `PF_RELEASE`,
@@ -24,4 +25,4 @@ these units when they change and rewrites `PF_RELEASE` at each switch. The units
 as root because the Docker socket is root-equivalent; the job inside the
 container runs as the private-finances account through compose's `user:`.
 
-Status: written and refreshed by the release script; not installed anywhere. See [containers](../../docs/containers.md).
+Status: installed on the container host since the cutover of 17 October 2026 and refreshed by the release script. See [containers](../../docs/containers.md).

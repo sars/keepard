@@ -8,7 +8,7 @@
 # Environment, all optional:
 #   PF_COMPOSE_DIR    where compose.yaml and .env live      /opt/private-finances
 #   PF_PREDEPLOY_DIR  where the pre-switch dump is kept     /var/lib/private-finances/predeploy
-#   PF_SERVICES       the services recreated at the switch  "app telegram"
+#   PF_SERVICES       the services recreated at the switch  "app telegram showcase"
 #                     (also read from .env in PF_COMPOSE_DIR, so a host that
 #                     must not run the Telegram worker — a shadow — says so
 #                     once, in its own configuration)
@@ -54,7 +54,7 @@ config_dir=$(setting PF_CONFIG_DIR)
 config_dir=${config_dir:-/etc/private-finances}
 previous_release=$(setting PF_RELEASE)
 services=${PF_SERVICES:-$(setting PF_SERVICES)}
-services=${services:-app telegram}
+services=${services:-app telegram showcase}
 
 ready_release() {
   curl -fsS "http://127.0.0.1:$port/health/ready" 2>/dev/null |
@@ -243,7 +243,7 @@ install -m 755 "$build/scripts/backup.sh" scripts/backup.sh
 # A unit that changed in the repository takes effect at the next release;
 # installing a new one, and the per-bank timer drop-ins, stay deliberate acts.
 changed=0
-for unit in "$build"/deploy/containers/*.service; do
+for unit in "$build"/deploy/containers/*.service "$build"/deploy/containers/*.path; do
   installed=/etc/systemd/system/$(basename "$unit")
   [ -f "$installed" ] || continue
   cmp -s "$unit" "$installed" && continue

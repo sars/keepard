@@ -17,8 +17,10 @@ loaded the final dump with all 52 tables matching the old host; every bank
 import succeeded at its first firing with the consents carried over; the
 backup runs daily as a service after a working-directory fix; the broker and
 exchange feeds read from the new address. The old host's installation is
-removed by `deploy/decommission-old-host.sh` at the owner's decision, leaving
-only the showcase there; details in [containers](containers.md). Everything
+removed by `deploy/decommission-old-host.sh` at the owner's decision; the
+showcase joins the stack as its own service behind a password at the edge
+([the showcase](showcase.md)) and the old host's copy goes with the rest;
+details in [containers](containers.md). Everything
 below the next entry about `deploy/release.sh` and the systemd host describes
 the deployment before the move.
 

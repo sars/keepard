@@ -168,22 +168,28 @@ Four independent things have to be true at once, and each is enough on its own:
 
 ## The rule for a demo instance on the server
 
-A demo instance may be run on the server so that the installed app, the phone
+A demo instance runs on the server so that the installed app, the phone
 layouts and the pull-to-refresh gesture can be photographed — a laptop cannot
 show those, because a phone cannot reach `localhost` and a LAN address is not a
 secure origin, so there is no service worker and no install.
 
-**Its hostname must never be exposed beyond the tailnet.** Demo mode has no
-login: it signs itself in, because there is nobody to authenticate and nothing
-real behind it. On the tailnet that is only the household. Put it behind a
-Tailscale funnel or any other public route and it is an open workspace that
-anybody can browse and write to. Nothing in the application prevents this; the
-rule is the whole protection.
+**Demo mode has no login.** It signs itself in, because there is nobody to
+authenticate and nothing real behind it. Put it on a public route as it is and
+it is an open workspace that anybody can browse and write to, refill button
+included. Nothing in the application prevents this; whatever stands in front
+of it is the whole protection. Until 17 October 2026 that was the tailnet: the
+showcase was served by Tailscale on the old host and never funnelled. On the
+container host it is a public name with a password at the edge — Caddy's
+`basic_auth`, one account, the hash in `/opt/edge/.env`
+([the edge](../deploy/edge/README.md)) — and the name is marked `noindex`.
+Take the password away and the rule is broken; there is no second line.
 
-It must also set `DEMO_DATA_DIR` to a directory of its own. The default is
-`data/demo` under the working directory, which on the server is inside the
-release — the database would be written into a release and lost at the next
-switch.
+It must also keep its workspace in a directory of its own. The compose file
+sets `DEMO_DATA_DIR` to `/var/lib/private-finances-showcase/demo`, a host
+directory under `PF_STATE_DIR` that only the showcase mounts; the old host's
+unit did the same under its state directory. The default, `data/demo` under
+the working directory, is for a laptop: inside a release or an image it would
+be written into the build and lost at the next switch.
 
 ## What the demo looks like
 
@@ -194,102 +200,71 @@ owner mistaking it for the real workspace now that the two look alike.
 
 ## Bringing the demo instance up on the server
 
-These are yours to run: they need the server, the tailnet and root. The unit
-file is `deploy/private-finances-showcase.service`.
+Since 17 October 2026 the showcase is the `showcase` service of the Compose
+stack ([containers](containers.md)): the release image in demo mode, port 3301
+on the host's loopback, a PGlite workspace under `PF_STATE_DIR/showcase`, no
+configuration mounted at all, and the edge serving it at its public name
+behind a password. A release recreates it together with the dashboard, so it
+follows every release by itself — what the old host's unit needed a refill
+for happens at the switch. The steps below are run once per host and need
+root there.
 
-1. **Check the port is free.** The real application holds 3300; the showcase
-   wants 3301.
-
-   ```sh
-   ssh radar "sudo ss -lntp | grep -E ':(3300|3301)'"
-   ```
-
-   Only 3300 should answer. If something else already holds 3301, pick another
-   port and change `PORT` in the unit before installing it.
-
-2. **Write the origin file.** It carries the tailnet hostname the showcase will
-   be served on, and nothing else — no database URL, no credential.
-
-   Read the hostname rather than typing it, and keep it in a variable so the
-   placeholder cannot survive into the file:
+1. **The state directory**, owned by the account the stack runs as (the
+   `PF_UID`/`PF_GID` in the stack's `.env`):
 
    ```sh
-   ssh radar "sudo install -m 0640 -o root -g private-finances /dev/null /etc/private-finances/showcase.env"
-   host=$(ssh radar "sudo tailscale status --json" | sed -n 's/.*"DNSName": "\([^"]*\)\.".*/\1/p' | head -1)
-   echo "$host"   # sanity: a *.ts.net name, not empty and not a placeholder
-   ssh radar "echo 'PUBLIC_ORIGIN=https://$host:10000' | sudo tee /etc/private-finances/showcase.env"
+   install -d -m 700 -o private-finances -g private-finances /var/lib/private-finances/showcase
    ```
 
-   Then assert the file says what it must. A wrong origin starts the service
-   and refuses every request with `invalid_host`, which is a confusing way to
-   find out.
+2. **The origin.** `PF_SHOWCASE_ORIGIN=https://<demo name>` in
+   `/opt/private-finances/.env`. The application compares the `Host` header
+   with it and refuses anything else with `invalid_host`; left empty there is
+   no check, which is for CI and laptops only.
+
+3. **Start it.** A release does, or `docker compose up -d showcase`. It comes
+   up with an empty workspace and is healthy within a minute:
 
    ```sh
-   ssh radar "sudo grep -cE '^PUBLIC_ORIGIN=https://[a-z0-9.-]+\.ts\.net:10000\$' /etc/private-finances/showcase.env"
+   curl -fsS http://127.0.0.1:3301/health/live
    ```
 
-   It must print `1`. The check is written as a positive assertion, and with
-   `sudo`, for a reason worth keeping: the file is `0640 root:private-finances`,
-   so a plain `grep` cannot read it, and a check phrased as "no placeholder
-   found" would take the failure branch and report success precisely when it
-   could not see the file at all. Assert what must be true, never the absence
-   of what must not.
-
-3. **Install and start the unit.**
+4. **Fill it.** The refill unit below does nothing without a request file
+   from the page, so the first fill is by hand, with the showcase stopped —
+   PGlite allows one process per data directory:
 
    ```sh
-   scp deploy/private-finances-showcase.service radar:/tmp/
-   ssh radar "sudo mv /tmp/private-finances-showcase.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now private-finances-showcase"
+   cd /opt/private-finances
+   docker compose stop showcase
+   docker compose --profile tools run --rm showcase-reseed node scripts/seed-showcase.mjs
+   docker compose start showcase
    ```
 
-4. **Point Tailscale at it.** The application listens on loopback only, exactly
-   as the real one does, so Tailscale terminates HTTPS in front of it. HTTPS is
-   what makes the installable app possible, which is the whole reason the
-   showcase runs on the server rather than on the laptop.
+   A few minutes at the default size. It prints one line of counts, and that
+   line must end in `5 receipts`: the pictures travel in the image, and a
+   count of zero means the image was built without them.
+
+5. **The refill watcher.** The two units are in `deploy/containers/`; the
+   release script refreshes them once installed, installing them is a
+   deliberate act:
 
    ```sh
-   ssh radar "sudo tailscale serve status"
-   ssh radar "sudo tailscale serve --bg --https 10000 http://127.0.0.1:3301"
+   install -m 644 deploy/containers/private-finances-showcase-reseed.path deploy/containers/private-finances-showcase-reseed.service /etc/systemd/system/
+   systemctl daemon-reload && systemctl enable --now private-finances-showcase-reseed.path
    ```
 
-   **Read the status first, and give the showcase a port nothing else holds.**
-   The real application is already served on **8443**, and pointing a second
-   backend at a port already in the serve configuration would send the
-   household's own URL to the demo. A path prefix is not an option either: the application serves
-   absolute routes (`/api/…`, `/assets/…`), so it has to own the root of
-   whatever origin it is on. `https://<host>:10000` is still a secure origin, so
-   the installable app works.
+6. **The door.** An A record for the demo name pointing at the host. Then in
+   `/opt/edge`: `PF_DEMO_DOMAIN`, `PF_DEMO_USER` and `PF_DEMO_PASSWORD_HASH`
+   in `.env` (`docker compose exec caddy caddy hash-password` makes the hash;
+   the password stays with the operator), the Caddyfile from `deploy/edge/`,
+   then — because Caddy reads `.env` at container start, not at reload —
+   `docker compose run --rm caddy caddy validate --config /etc/caddy/Caddyfile`
+   and `docker compose up -d`. Recreating Caddy costs every site on the host a
+   few seconds; the certificate follows within a minute of the record
+   resolving.
 
-   **Never `tailscale funnel`.** Funnel puts it on the public internet, and the
-   showcase has no login.
-
-   The origin file in step 2 must match this exactly, port included:
-   `PUBLIC_ORIGIN=https://<showcase-hostname>:10000`. The application compares
-   the `Host` header against it and refuses anything else.
-
-5. **Fill it.**
-
-   **Stop the service first.** PGlite allows one process per data directory,
-   and the running service is holding it: seeding underneath it would write
-   into a database somebody else has open. The seeder takes a few minutes, and
-   it runs outside the service's cgroup so `MemoryMax` does not apply to it.
-
-   ```sh
-   ssh radar "sudo systemctl stop private-finances-showcase"
-   ssh radar "cd /opt/private-finances/current && sudo -u private-finances env DEMO_DATA_DIR=/var/lib/private-finances-showcase/demo /usr/bin/node scripts/seed-showcase.mjs"
-   ssh radar "sudo systemctl start private-finances-showcase"
-   ```
-
-   `env` is not decoration: `sudo` clears the environment, so
-   `sudo -u private-finances DEMO_DATA_DIR=… node …` would seed the default
-   directory inside the release instead of the one the service reads.
-
-   Re-run both before a session of screenshots: the dates are generated
-   relative to the day it is seeded.
-
-6. **Check it.** Open the hostname on your phone, install it, and confirm the
-   header says **Demo mode** and the people are Alex and Sam. If it says
-   anything else, stop and do not photograph it.
+7. **Check it.** Open the name, give the password, install it on the phone,
+   and confirm the header says **Demo mode** and the people are Alex and Sam.
+   If it says anything else, stop and do not photograph it.
 
 ## Refilling it from the page
 
@@ -302,50 +277,46 @@ serving the release it booted with. It did that for four months once, and the
 only thing that said so was the screens looking wrong.
 
 The page cannot do any of that itself. PGlite allows one process per data
-directory and the service is holding it, so a workspace can only be rebuilt
-while the service is stopped — and stopping a service needs root, which the
-demo has none of and should never be given: it is a service with no login,
-reachable by anyone on the tailnet.
+directory and the running showcase is holding it, so a workspace can only be
+rebuilt while the showcase is stopped — and stopping a container needs the
+Docker socket, which is root, which the demo has none of and should never be
+given: it is a service with no login of its own behind one password.
 
-So the page writes a request file, `private-finances-showcase-reseed.path`
-notices it, and `private-finances-showcase-reseed.service` does the work as
-root, dropping to `private-finances` for the seeding itself. The page follows
-along by polling a status file — including across the minutes when the demo is
-stopped and cannot answer at all, which it reports as "Working" rather than as
-an error, because that is what it is.
+So the page writes a request file, `private-finances-showcase-reseed.path` on
+the host notices it, and `private-finances-showcase-reseed.service` does the
+work: it stops the showcase, runs `scripts/reseed-showcase.mjs` in the
+`showcase-reseed` container (the same image and account as the showcase), and
+starts the showcase again whatever the outcome. On the old host the same
+script stopped and started the systemd unit itself. The page follows along by
+polling a status file — including across the minutes when the demo is stopped
+and cannot answer at all, which it reports as "Working" rather than as an
+error, because that is what it is.
 
 A refill that fails says so on the page, names the reason, and starts the demo
 again anyway: a workspace that is empty or half built can be recognised and
 refilled, where a demo that is simply not there looks like a broken server.
 
-### Installing the two units
+### Checking the watcher
 
-Yours to run; they need root. Do this once, after the showcase itself is up.
+The units are installed in step 5 of "Bringing the demo instance up on the
+server". Afterwards:
 
-1. **Copy them over and enable the watcher.** Only the `.path` unit is enabled
-   — the `.service` is started by it, not by boot.
-
-   ```sh
-   scp deploy/private-finances-showcase-reseed.{path,service} radar:/tmp/
-   ssh radar "sudo mv /tmp/private-finances-showcase-reseed.path /tmp/private-finances-showcase-reseed.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now private-finances-showcase-reseed.path"
-   ```
-
-2. **Check the watcher is waiting.**
+1. **Is it waiting?**
 
    ```sh
-   ssh radar "systemctl status private-finances-showcase-reseed.path --no-pager | head -5"
+   systemctl status private-finances-showcase-reseed.path --no-pager | head -5
    ```
 
    It should say `active (waiting)`. `active (running)` means a refill is in
    progress; `inactive` means it was not enabled.
 
-3. **Try it.** Open `/showcase/reseed` on the tailnet hostname, leave the
-   defaults, and press Refill. The page should move through Queued → Building
-   the household → Starting the demo → Done, and end by naming the counts and
-   the release. It takes a few minutes at the default size.
+2. **Try it.** Open `/showcase/reseed` at the demo name, leave the defaults,
+   and press Refill. The page should move through Queued → Building the
+   household → Starting the demo → Done, and end by naming the counts and the
+   release. It takes a few minutes at the default size.
 
    If it sits on "Working" far longer than that, read the unit:
 
    ```sh
-   ssh radar "sudo journalctl -u private-finances-showcase-reseed -n 40 --no-pager"
+   journalctl -u private-finances-showcase-reseed -n 40 --no-pager
    ```

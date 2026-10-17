@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # The application image: one build of one commit, run by compose.yaml as the
-# dashboard, the Telegram worker and the scheduled jobs. Nothing private is
+# dashboard, the Telegram worker, the showcase and the scheduled jobs. Nothing private is
 # baked in — configuration and credentials are mounted at run time from
 # /etc/private-finances, exactly where the systemd deployment reads them.
 #
@@ -48,8 +48,11 @@ WORKDIR /app
 COPY --from=production-dependencies /app/package.json ./
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-# The showcase's reseed job and the demo seeders run from the built tree.
+# The showcase's reseed job and the demo seeders run from the built tree, and
+# the seeder attaches the committed receipt pictures, resolved from dist/src
+# as ../../showcase/receipts.
 COPY --from=build /app/scripts/*.mjs ./scripts/
+COPY --from=build /app/showcase/receipts ./showcase/receipts
 # The frontend is served from dist/frontend relative to the working directory.
 # The container runs read-only and as the uid compose assigns; everything here
 # is world-readable and nothing is written under /app.

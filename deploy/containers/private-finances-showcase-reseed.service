@@ -1,0 +1,15 @@
+[Unit]
+Description=Private Finances showcase refill (rebuild the invented household), through the container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/private-finances
+# The showcase stops first: PGlite allows one process per data directory.
+ExecStartPre=/usr/bin/docker compose stop showcase
+ExecStart=/usr/bin/docker compose --profile tools run --rm --quiet-pull showcase-reseed
+# Started again whatever happened: a half-built workspace can be recognised
+# and refilled, a demo that is simply not there looks like a broken server.
+ExecStopPost=/usr/bin/docker compose start showcase
+TimeoutStartSec=45min

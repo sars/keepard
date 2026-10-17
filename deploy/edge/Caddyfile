@@ -28,6 +28,29 @@
 	}
 }
 
+# ---- Private Finances showcase -------------------------------------------
+# The invented household the article is photographed against. Demo mode has
+# no login of its own (docs/showcase.md), so this public name carries one
+# here: one account, whose bcrypt hash comes from .env.
+
+{$PF_DEMO_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	basic_auth {
+		{$PF_DEMO_USER} {$PF_DEMO_PASSWORD_HASH}
+	}
+	reverse_proxy private-finances-showcase:3301 {
+		lb_try_duration 30s
+		lb_try_interval 250ms
+	}
+}
+
 # ---- Hlyna ---------------------------------------------------------------
 # Moved here verbatim from that project's own Caddyfile, except the upstream
 # name. Its repository documents the behaviour; change it there first.
