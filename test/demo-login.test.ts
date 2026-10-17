@@ -50,6 +50,13 @@ test('a demo with demoLogin needs the seeded account; without it, it signs itsel
       assert.equal((await fetch(guarded.base + '/health/live')).status, 200);
       assert.equal((await fetch(guarded.base + '/api/bootstrap')).status, 401);
       assert.equal((await fetch(guarded.base + '/api/accounts')).status, 401);
+      // The refill page's status is answered before the session gate (404
+      // here, with no reseed unit wired, rather than 401): a refill wipes the
+      // sessions and the page keeps polling through it.
+      assert.equal(
+        (await fetch(guarded.base + '/showcase/reseed/status')).status,
+        404,
+      );
       assert.equal(
         (await login(guarded.base, 'not-the-password-at-all')).status,
         401,

@@ -21,14 +21,22 @@ from the new address. The old host's finance
 installation was removed by `deploy/decommission-old-host.sh` on 17 October
 2026 at the owner's decision, after one last dump to the new host; the
 showcase joins the stack as its own service with a sign-in of its own
-([the showcase](showcase.md)) and the old host's copy goes once the new one
-answers at its name; details in [containers](containers.md). Everything
+([the showcase](showcase.md)), and the old host's copy went the same evening,
+leaving nothing of the project there; details in [containers](containers.md). Everything
 below the next entry about `deploy/release.sh` and the systemd host describes
 the deployment before the move.
 
-**42767990f8b7875e4082ad93f35cde8adb6fe6e2**, live since October 17, 2026 at
-schema version 68, deployed with `deploy/container-release.sh` to the container
-host: `app`, `db` and the Telegram worker running, 4,428 transactions at
+**8def230ee40533ed739a539052886512c9d6c072**, live since October 17, 2026 at
+schema version 68, deployed with `deploy/container-release.sh`: the showcase
+in the stack with a sign-in of its own at its public name, the receipt
+pictures in the image, the refill watcher on the host, and the records of the
+restore rehearsal and of the old host's removal (PRs #170 to #173). The two
+releases before it the same day, 6f6989b3 and 42767990, brought the showcase
+service and the fixes from the cutover night.
+
+**42767990f8b7875e4082ad93f35cde8adb6fe6e2**, superseded October 17, 2026,
+live from that morning at schema version 68, deployed with
+`deploy/container-release.sh` to the container host: `app`, `db` and the Telegram worker running, 4,428 transactions at
 verification, the migration rehearsal against a scratch database passed. It
 carries PRs #159 to #169: the Compose stack, the container release, the backup
 through the container, the shared edge proxy, the cutover script and the fixes
