@@ -360,7 +360,11 @@ sync and local-backup directories, the contents of the account's home
 directory (golden files, operations notes, pre-deployment dumps), and every
 release except the one the showcase runs. The showcase, its reseed units, its
 state directory, the account it runs as, PostgreSQL itself and the other
-projects on that host are not touched. The journal keeps the units' logs,
+projects on that host are not touched — unless `--with-showcase` is given,
+which the script accepts only while the new host's own showcase answers, and
+which then also removes the showcase's units and Tailscale mapping, its
+state, the whole release and configuration directories and the account, so
+that nothing of this project is left on the old host. The journal keeps the units' logs,
 which by the logging rule carry no financial descriptions; it is shared with
 the other projects and is left alone.
 
