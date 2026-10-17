@@ -1,11 +1,12 @@
 #!/bin/bash
 # Removes the finance installation from the systemd host after the move to
 # the container host, from the operator's machine, leaving the showcase (an
-# invented household, no credentials) running there. Without --execute it
-# only prints what it would remove; with --execute it first streams one last
-# dump of the old database to the new host, then removes.
+# invented household, no credentials) running there unless --with-showcase
+# says it has moved too. Without --execute it only prints what it would
+# remove; with --execute it first streams one last dump of the old database
+# to the new host, then removes.
 #
-#   bash deploy/decommission-old-host.sh <old ssh host> <new ssh host> [--execute]
+#   bash deploy/decommission-old-host.sh <old ssh host> <new ssh host> [--execute] [--with-showcase]
 #
 # What goes: the units the cutover disabled and their drop-ins, the local
 # backup unit, the Tailscale serve mapping of the old dashboard, the
@@ -15,14 +16,24 @@
 # the showcase runs. What stays: the showcase service, its reseed units, its
 # state directory, `showcase.env`, the `private-finances` account the showcase
 # runs as, the release it runs, PostgreSQL itself and everything that is not
-# this project's.
+# this project's. With --with-showcase the showcase goes as well: its units,
+# its Tailscale mapping, its state directory, the whole release directory,
+# the configuration directory and the account.
 set -euo pipefail
 
 old=${1:-}
 new=${2:-}
-mode=${3:-}
-[ -n "$old" ] && [ -n "$new" ] && { [ -z "$mode" ] || [ "$mode" = --execute ]; } || {
-  echo "usage: bash deploy/decommission-old-host.sh <old ssh host> <new ssh host> [--execute]" >&2
+mode=
+with_showcase=
+for flag in "${@:3}"; do
+  case "$flag" in
+    --execute) mode=--execute ;;
+    --with-showcase) with_showcase=1 ;;
+    *) old= ;;
+  esac
+done
+[ -n "$old" ] && [ -n "$new" ] || {
+  echo "usage: bash deploy/decommission-old-host.sh <old ssh host> <new ssh host> [--execute] [--with-showcase]" >&2
   exit 64
 }
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
@@ -53,8 +64,17 @@ set -e
 # shellcheck disable=SC2046
 active=$(systemctl is-active $(cat /etc/private-finances/cutover-disabled-units) 2>/dev/null | grep -vc '^inactive$' || true)
 [ "$active" = 0 ] || { echo "$active of the disabled units are active" >&2; exit 65; }
-systemctl is-active --quiet private-finances-showcase.service && echo 'showcase: running, stays' || echo 'showcase: not running (nothing to keep running)'
+systemctl is-active --quiet private-finances-showcase.service && echo 'showcase: running' || echo 'showcase: not running'
 REMOTE
+if [ -n "$with_showcase" ]; then
+  # The showcase goes only once the new host serves one of its own.
+  on_new <<'REMOTE'
+set -e
+cd /opt/private-finances
+docker compose ps --status running --services | grep -qx showcase || { echo 'the new host runs no showcase; it stays on the old host' >&2; exit 65; }
+curl -fsS -o /dev/null http://127.0.0.1:3301/health/live && echo 'new host: showcase running and answering'
+REMOTE
+fi
 
 step 'what goes'
 on_old <<'REMOTE' | quiet
@@ -69,6 +89,9 @@ du -sh /var/lib/private-finances-backups /var/lib/private-finances-consent /var/
 echo "  $(du -sh /var/lib/private-finances | cut -f1) contents of /var/lib/private-finances (the account's home stays)"
 echo "releases: $(ls /opt/private-finances/releases | grep -vc "^$(basename "$current")$" || true) of $(ls /opt/private-finances/releases | wc -l); $(basename "$current") stays for the showcase"
 echo "tailscale serve: the https:8443 mapping of the old dashboard (10000, the showcase, stays)"
+REMOTE
+[ -z "$with_showcase" ] || on_old <<'REMOTE' | quiet
+echo "and the showcase: its three units, the https:10000 mapping, $(du -sh /var/lib/private-finances-showcase 2>/dev/null | cut -f1) of state, the last release, /etc/private-finances itself and the private-finances account"
 REMOTE
 
 [ "$mode" = --execute ] || { printf '\nDry run. Add --execute to remove.\n'; exit 0; }
@@ -109,6 +132,20 @@ find /var/lib/private-finances -mindepth 1 -maxdepth 1 ! -name '.bash*' ! -name 
 for release in /opt/private-finances/releases/*; do [ "$release" = "$current" ] || rm -rf "$release"; done
 echo 'files removed'
 REMOTE
+[ -z "$with_showcase" ] || on_old <<'REMOTE' | quiet
+set -e
+units='private-finances-showcase-reseed.path private-finances-showcase-reseed.service private-finances-showcase.service'
+# shellcheck disable=SC2086
+systemctl disable --now $units >/dev/null 2>&1 || true
+for unit in $units; do rm -f "/etc/systemd/system/$unit"; done
+systemctl daemon-reload
+systemctl reset-failed
+tailscale serve --https=10000 off >/dev/null 2>&1 || true
+rm -rf /opt/private-finances /var/lib/private-finances-showcase /etc/private-finances
+userdel --remove private-finances 2>/dev/null || userdel private-finances
+rm -rf /var/lib/private-finances
+echo 'showcase, release directory, configuration directory and account removed'
+REMOTE
 
 step '3. old host: what is left'
 on_old <<'REMOTE' | quiet
@@ -116,11 +153,16 @@ set -e
 echo "units: $(ls /etc/systemd/system | grep '^private-finances' | tr '\n' ' ')"
 echo "failed: $(systemctl --failed --no-legend --no-pager | grep -c private-finances || true) private-finances units"
 echo "databases named private_finances: $(sudo -u postgres psql -Atc "select count(*) from pg_database where datname='private_finances'")"
-echo "configuration: $(ls -A /etc/private-finances | tr '\n' ' ')"
-echo "releases: $(ls /opt/private-finances/releases | tr '\n' ' ')"
-echo "home: $(ls -A /var/lib/private-finances | tr '\n' ' ')"
+echo "configuration: $(ls -A /etc/private-finances 2>/dev/null | tr '\n' ' ' || echo gone)"
+echo "releases: $(ls /opt/private-finances/releases 2>/dev/null | tr '\n' ' ' || echo gone)"
+echo "home: $(ls -A /var/lib/private-finances 2>/dev/null | tr '\n' ' ' || echo gone)"
+echo "account: $(getent passwd private-finances >/dev/null && echo present || echo gone)"
 echo "tailscale serve: $(tailscale serve status --json 2>/dev/null | grep -oE ':[0-9]+"' | tr -d '":' | tr '\n' ' ')"
 systemctl is-active --quiet private-finances-showcase.service && curl -fsS -o /dev/null http://127.0.0.1:3301/health/live && echo 'showcase: running and answering' || echo 'showcase: not running'
 REMOTE
 
-printf '\nDone. The old host now carries only the showcase.\n'
+if [ -n "$with_showcase" ]; then
+  printf '\nDone. Nothing of this project is left on the old host.\n'
+else
+  printf '\nDone. The old host now carries only the showcase.\n'
+fi
