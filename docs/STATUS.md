@@ -12,18 +12,28 @@ release with `origin/main` rather than reconstructing it by hand.
 **The application moved to the container host on 17 October 2026 (PF-022).**
 It runs as a Compose stack behind a shared edge proxy at a public name, with
 its own PostgreSQL, the Telegram worker, and the timers on the host running
-jobs in containers; the release is `deploy/container-release.sh`, the first
-real run of which deployed a0bd82a9. The cutover loaded the final dump with
-all 52 tables matching the old host; the Enable Banking imports succeeded at
-their first firing with the consents carried over. Known after the cutover:
-the backup service failed its first run for a working-directory reason fixed
-in the repository and awaiting its first container release; the old host keeps
-everything, disabled, as the rollback for two weeks. Details and the rollback
-are in [containers](containers.md). Everything below this paragraph about
-`deploy/release.sh` and the systemd host describes the deployment before the
-move.
+jobs in containers; the release is `deploy/container-release.sh`. The cutover
+loaded the final dump with all 52 tables matching the old host; every bank
+import succeeded at its first firing with the consents carried over; the
+backup runs daily as a service after a working-directory fix; the broker and
+exchange feeds read from the new address. The old host's installation is
+removed by `deploy/decommission-old-host.sh` at the owner's decision, leaving
+only the showcase there; details in [containers](containers.md). Everything
+below the next entry about `deploy/release.sh` and the systemd host describes
+the deployment before the move.
 
-**023a2247b2c77828024fc2414716746b13a00546**, live since October 4, 2026 at
+**42767990f8b7875e4082ad93f35cde8adb6fe6e2**, live since October 17, 2026 at
+schema version 68, deployed with `deploy/container-release.sh` to the container
+host: `app`, `db` and the Telegram worker running, 4,428 transactions at
+verification, the migration rehearsal against a scratch database passed. It
+carries PRs #159 to #169: the Compose stack, the container release, the backup
+through the container, the shared edge proxy, the cutover script and the fixes
+the cutover night taught. The release before it, a0bd82a9, was the first real
+run of the container release and the one the cutover moved; the attempt between
+them rolled itself back as designed, the first exercise of that path.
+
+**023a2247b2c77828024fc2414716746b13a00546**, superseded October 17, 2026 by
+the move to the container host; live since October 4, 2026 at
 schema version 68, deployed with `deploy/release.sh`: both services active,
 schema 68, 4,328 transactions, server tests (718 pass, 0 fail) and the migration
 rehearsal passed. It carries PR #156 and adds migration 68,

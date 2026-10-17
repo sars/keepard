@@ -2,8 +2,9 @@
 
 How the application runs as a Docker Compose stack, and how it gets from the
 systemd deployment to that. The decision and its reasons are in
-[ADR 0009](adr/0009-containers-on-a-shared-server.md). Nothing described here is
-deployed: the live server still runs the systemd units in [running](running.md).
+[ADR 0009](adr/0009-containers-on-a-shared-server.md). This is how the
+application has run since 17 October 2026; the systemd deployment it replaced
+is described in [running](running.md) and survives only as the showcase's host.
 
 ## State of the work
 
@@ -11,14 +12,15 @@ deployed: the live server still runs the systemd units in [running](running.md).
 | --- | --- |
 | `Dockerfile`, `compose.yaml`, `deploy/compose.edge.yaml` | written; built and started in CI by the Container workflow |
 | `deploy/edge/` (the proxy stack) | **running since 17 October 2026** in `/opt/edge`: it serves both projects, obtained the dashboard's certificate from Let's Encrypt within a minute, and the other project's site was unreachable for four seconds during the handover plus six during its one restart |
-| `deploy/containers/` (host units for the timers) | written; not installed anywhere |
-| `deploy/container-release.sh` and `container-release-remote.sh` | written; the server side is rehearsed in CI on every change against the stack it just started; never run against a server |
-| Backup through the container (`scripts/backup.sh` with `BACKUP_DATABASE_VIA=compose`, `deploy/containers/private-finances-backup.service`) | written; exercised in CI against a local restic repository; never run on a host ([backups](backups.md)) |
+| `deploy/containers/` (host units for the timers) | **installed at the cutover, 17 October 2026**: the eleven timers fire and the backup service succeeds |
+| `deploy/container-release.sh` and `container-release-remote.sh` | **in use**: the first real run deployed a0bd82a9, the second rolled itself back as designed, the third deployed 42767990; the server side is still rehearsed in CI on every change |
+| Backup through the container (`scripts/backup.sh` with `BACKUP_DATABASE_VIA=compose`, `deploy/containers/private-finances-backup.service`) | **running daily on the container host since 17 October 2026**, proven as a service after its first run failed for the working-directory reason below; still exercised in CI ([backups](backups.md)) |
 | Showcase in a container | not planned yet; it stays on the old host until decided |
 | Restore proof on the new host from the bucket | not done; the shadow was loaded from a direct dump, not from the bucket |
 | Shadow installation on the destination server | **done 16 October 2026**; see "The shadow, as installed" below |
 | Edge takeover and the domain | **done 17 October 2026**; the other project's change is on its `main` and marked as its deployed commit |
 | Cutover | **done 17 October 2026, 00:40–01:15 Riga time**; see "The cutover, as it went" below |
+| Leaving the old host | `deploy/decommission-old-host.sh` written and dry-run on 17 October 2026; the owner chose to run it the same day rather than keep the two-week rollback; see "Leaving the old host" below |
 
 ## The stack
 
@@ -337,6 +339,38 @@ script now enters the compose directory and the unit sets
 Anything the household did on the new host after the cutover — a
 classification, an import — exists only there; dump it with the container
 backup and load it on the old host before enabling, or accept the loss.
+
+## Leaving the old host
+
+The plan kept the old host untouched for two weeks as the rollback. On
+17 October 2026, with every import succeeded at least once from the new host,
+the backup proven as a service, the broker and exchange feeds read from the new
+address and the second release deployed, the owner chose to remove the old
+installation the same day. `deploy/decommission-old-host.sh <old> <new>` prints
+what it would remove and refuses unless the new host serves the household (the
+dashboard ready, `app`, `db` and `telegram` running, the timers enabled) and
+the old host is the one the cutover stopped (its disabled-units list present
+and every unit on it inactive). With `--execute` it first streams one last
+dump of the old database into the new host's `predeploy` directory and checks
+that the archive lists the tables, then removes, on the old host: the units
+the cutover disabled and their drop-ins, the local backup unit, the Tailscale
+mapping of the old dashboard, the `private_finances` database and its role,
+everything under `/etc/private-finances` except `showcase.env`, the consent,
+sync and local-backup directories, the contents of the account's home
+directory (golden files, operations notes, pre-deployment dumps), and every
+release except the one the showcase runs. The showcase, its reseed units, its
+state directory, the account it runs as, PostgreSQL itself and the other
+projects on that host are not touched. The journal keeps the units' logs,
+which by the logging rule carry no financial descriptions; it is shared with
+the other projects and is left alone.
+
+From then on there is no rollback to the old host. A failure of the new host
+is answered by [backups](backups.md): the bucket holds the database and
+configuration snapshots of both hosts, and the new host also keeps the
+cutover dump and this final dump under `/var/lib/private-finances/predeploy`.
+The two owner-side leftovers are the old server's address on the Binance key
+and the old callback URL in the Enable Banking panel; both are removals the
+owner makes in those consoles.
 
 ## Security, stated plainly
 
