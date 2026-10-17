@@ -567,6 +567,21 @@ export function web(
         json(200, { actor: signedIn.owner, csrf: signedIn.csrf });
         return;
       }
+      // Polled by the refill page for the whole of a refill, including the
+      // minutes when this server is not running at all — the page treats a
+      // failed request as "still down", which is what it means. Before the
+      // session gate: a refill rebuilds the workspace, sessions included, so
+      // a demo behind a sign-in would otherwise stop answering the page the
+      // moment the work was done. It carries counts and a state, no data.
+      if (req.method === 'GET' && route === '/showcase/reseed/status') {
+        if (config.mode !== 'demo' || !config.showcaseControlDirectory) {
+          json(404, { error: 'not_found', requestId });
+          return;
+        }
+        const status = await readReseedStatus(config.showcaseControlDirectory);
+        json(200, status ?? { state: 'none' });
+        return;
+      }
       if (!session) {
         // The shell and its assets are the sign-in screen as much as they are
         // the application, they carry no household data, and this repository
@@ -623,6 +638,7 @@ export function web(
             config.showcaseControlDirectory
               ? await readReseedStatus(config.showcaseControlDirectory)
               : null,
+            !selfSignedIn,
           ),
         );
         return;
@@ -637,18 +653,6 @@ export function web(
           'Cache-Control': 'no-store',
         });
         res.end(showcaseReseedScript());
-        return;
-      }
-      // Polled by that page for the whole of a refill, including the minutes
-      // when this server is not running at all — the page treats a failed
-      // request as "still down", which is what it means.
-      if (req.method === 'GET' && route === '/showcase/reseed/status') {
-        if (config.mode !== 'demo' || !config.showcaseControlDirectory) {
-          json(404, { error: 'not_found', requestId });
-          return;
-        }
-        const status = await readReseedStatus(config.showcaseControlDirectory);
-        json(200, status ?? { state: 'none' });
         return;
       }
       if (shellRoute) {

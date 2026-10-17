@@ -90,6 +90,8 @@ function summary(status: ShowcaseReseedStatus | null): string {
 export function showcaseReseedPage(
   csrf: string,
   status: ShowcaseReseedStatus | null,
+  /** A demo behind a sign-in loses its sessions with the refill; say so. */
+  signsIn = false,
 ): string {
   return (
     `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
@@ -143,7 +145,7 @@ export function showcaseReseedPage(
     ) +
     field('receipts', 'Receipts', 'Of the five slips that exist', '1') +
     `<button type="submit">Refill</button></form>` +
-    `<div id="progress"><h2 id="state">Asking…</h2><p id="detail"></p></div>` +
+    `<div id="progress"${signsIn ? ' data-signs-in="1"' : ''}><h2 id="state">Asking…</h2><p id="detail"></p></div>` +
     `<p><a href="/">Back to the application</a></p>` +
     // Its own route rather than inline: the policy this server sends is
     // `script-src 'self'`, which blocks an inline script, and the policy is
@@ -205,7 +207,10 @@ export function showcaseReseedScript(): string {
       detail.textContent =
         parts.join(', ') +
         (status.release ? ', on release ' + status.release.slice(0, 7) : '') +
-        '. Reload the application to see it.';
+        '. Reload the application to see it.' +
+        (box.dataset.signsIn
+          ? ' It asks you to sign in again: a refill rebuilds the workspace, sessions included.'
+          : '');
       return;
     }
     detail.textContent =

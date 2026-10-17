@@ -15,7 +15,7 @@ is described in [running](running.md) and survives only as the showcase's host.
 | `deploy/containers/` (host units for the timers) | **installed at the cutover, 17 October 2026**: the eleven timers fire and the backup service succeeds |
 | `deploy/container-release.sh` and `container-release-remote.sh` | **in use**: the first real run deployed a0bd82a9, the second rolled itself back as designed, the third deployed 42767990; the server side is still rehearsed in CI on every change |
 | Backup through the container (`scripts/backup.sh` with `BACKUP_DATABASE_VIA=compose`, `deploy/containers/private-finances-backup.service`) | **running daily on the container host since 17 October 2026**, proven as a service after its first run failed for the working-directory reason below; still exercised in CI ([backups](backups.md)) |
-| Showcase in a container | **implemented 17 October 2026**: the `showcase` service, refilled by `showcase-reseed` under a host path unit, served at a public name with a sign-in of its own; the host steps are in [the showcase](showcase.md) |
+| Showcase in a container | **live at its own name since 17 October 2026**: the `showcase` service, refilled by `showcase-reseed` under a host path unit (a refill from the page ran end to end the same day), with a sign-in of its own; the host steps are in [the showcase](showcase.md) |
 | Restore proof on the new host from the bucket | **done 17 October 2026**: snapshot `95aa1a3e` restored into a disposable database, 52 tables compared; see [backups](backups.md) |
 | Shadow installation on the destination server | **done 16 October 2026**; see "The shadow, as installed" below |
 | Edge takeover and the domain | **done 17 October 2026**; the other project's change is on its `main` and marked as its deployed commit |
@@ -384,9 +384,9 @@ address from the exchange key and the old callback from the bank provider.
 The final dump, 52 tables, is `old-host-final-20261017T115940Z.dump` in the
 new host's `predeploy` directory. The old host was left with the showcase's
 three units, its state, `showcase.env`, the one release it runs and the
-account, until the new host's showcase is reachable at its own name; the
-script's `--with-showcase` run then removes those too, and accepts a host the
-finance half has already left.
+account until the new host's showcase answered at its own name, which it did
+at 15:30 UTC the same day; the script's `--with-showcase` run then removed
+those too, and nothing of this project is left on the old host.
 
 From then on there is no rollback to the old host. A failure of the new host
 is answered by [backups](backups.md): the bucket holds the database and

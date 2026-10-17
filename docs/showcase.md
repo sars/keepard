@@ -297,7 +297,9 @@ starts the showcase again whatever the outcome. On the old host the same
 script stopped and started the systemd unit itself. The page follows along by
 polling a status file — including across the minutes when the demo is stopped
 and cannot answer at all, which it reports as "Working" rather than as an
-error, because that is what it is.
+error, because that is what it is. The status is answered without a session,
+because a refill rebuilds the workspace with its sessions, and the page says
+so at the end: reload, and sign in again.
 
 A refill that fails says so on the page, names the reason, and starts the demo
 again anyway: a workspace that is empty or half built can be recognised and
