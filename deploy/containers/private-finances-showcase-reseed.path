@@ -1,0 +1,11 @@
+[Unit]
+Description=Private Finances showcase reseed request watcher (container host)
+
+[Path]
+# The showcase's control directory on the host: PF_STATE_DIR/showcase, which
+# the container sees as /var/lib/private-finances-showcase.
+PathChanged=/var/lib/private-finances/showcase/reseed.request
+Unit=private-finances-showcase-reseed.service
+
+[Install]
+WantedBy=paths.target

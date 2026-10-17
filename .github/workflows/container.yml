@@ -36,8 +36,8 @@ jobs:
         run: |
           config="$RUNNER_TEMP/private-finances-config"
           state="$RUNNER_TEMP/private-finances-state"
-          mkdir -p "$config/credentials" "$config/schedules" "$state/consent" "$state/sync"
-          chmod 700 "$config/credentials" "$state/consent" "$state/sync"
+          mkdir -p "$config/credentials" "$config/schedules" "$state/consent" "$state/sync" "$state/showcase"
+          chmod 700 "$config/credentials" "$state/consent" "$state/sync" "$state/showcase"
           printf 'POSTGRES_PASSWORD=disposable-ci-only\n' > "$config/db.env"
           {
             echo 'DATABASE_URL=postgresql://private-finances:disposable-ci-only@db:5432/private_finances'
@@ -59,13 +59,21 @@ jobs:
           echo "PF_RELEASE=$PF_RELEASE" >> .env
       - name: Build the image
         run: docker compose build app
-      - name: Start the database and the dashboard
-        run: docker compose up -d --wait db app
+      - name: Start the database, the dashboard and the showcase
+        run: docker compose up -d --wait db app showcase
       - name: Ask the dashboard whether it is ready
         run: |
           curl -fsS http://127.0.0.1:3300/health/ready | tee ready.json
           grep -q '"status":"ready"' ready.json
           grep -q "\"release\":\"$PF_RELEASE\"" ready.json
+      - name: Refill the showcase the way the reseed unit would
+        run: |
+          docker compose stop showcase
+          docker compose --profile tools run --rm -e SHOWCASE_MONTHS=1 -e SHOWCASE_DENSITY=0.25 \
+            showcase-reseed node scripts/seed-showcase.mjs | tee seeded.txt
+          grep -qE ' [1-5] receipts$' seeded.txt
+          docker compose up -d --wait showcase
+          curl -fsS http://127.0.0.1:3301/health/live
       - name: Confirm the schema was applied
         run: |
           schema=$(docker compose exec -T db psql -U private-finances -d private_finances -tAc 'select max(version) from schema_versions')

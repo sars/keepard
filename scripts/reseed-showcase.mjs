@@ -11,6 +11,11 @@
 // died silently is how the demo came to be four months stale without anybody
 // noticing.
 //
+// On the container host it runs inside the `showcase-reseed` service with
+// SHOWCASE_MANAGE_SERVICE=no and SHOWCASE_DROP_PRIVILEGES=no: the host unit
+// that runs it stops the showcase before and starts it after, the container
+// already is the right account, and RELEASE_SHA says which release this is.
+//
 // Stopping the service is not incidental. PGlite allows one process per data
 // directory, so a workspace cannot be rebuilt underneath a server holding it;
 // and `WorkingDirectory=/opt/private-finances/current` is resolved once at
@@ -33,6 +38,8 @@ const account = process.env.SHOWCASE_USER ?? 'private-finances';
 // Empty means "seed in this process's own account", which is what a laptop
 // wants; on the server the seeding has to land as `private-finances`.
 const dropPrivileges = process.env.SHOWCASE_DROP_PRIVILEGES !== 'no';
+// "no" means somebody else stops and starts the demo around this run.
+const manageService = process.env.SHOWCASE_MANAGE_SERVICE !== 'no';
 
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -84,9 +91,11 @@ await unlink(requestPath(directory)).catch(() => {});
 // directory after its commit, and `current` is the symlink the switch flips,
 // so resolving it is the whole answer. Worth recording: a reseed is also how
 // the demo moves between releases, and the page says which one it landed on.
-const release = await run('readlink', ['-f', '/opt/private-finances/current'])
-  .then((value) => value.trim().split('/').pop() ?? '')
-  .catch(() => '');
+const release =
+  process.env.RELEASE_SHA ||
+  (await run('readlink', ['-f', '/opt/private-finances/current'])
+    .then((value) => value.trim().split('/').pop() ?? '')
+    .catch(() => ''));
 
 const status = {
   state: 'seeding',
@@ -97,7 +106,7 @@ const status = {
 await writeReseedStatus(directory, status);
 
 try {
-  await systemctl('stop', unit);
+  if (manageService) await systemctl('stop', unit);
 
   // A fresh directory rather than a reused one. The seeder can refill a
   // workspace in place and is tested doing it, but a reseed that failed part
@@ -146,7 +155,7 @@ try {
   }
 
   await writeReseedStatus(directory, { ...status, state: 'starting', counts });
-  await systemctl('start', unit);
+  if (manageService) await systemctl('start', unit);
   await writeReseedStatus(directory, {
     ...status,
     state: 'done',
@@ -165,7 +174,7 @@ try {
   // Start it again regardless. A demo showing an empty or half-built workspace
   // is worth more than a demo that is simply not there: the first can be
   // recognised and refilled, the second looks like the server is broken.
-  await systemctl('start', unit).catch(() => {});
+  if (manageService) await systemctl('start', unit).catch(() => {});
   console.error(`showcase refill failed: ${message}`);
   process.exit(1);
 }

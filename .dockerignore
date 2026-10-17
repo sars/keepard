@@ -23,6 +23,8 @@ credentials
 secrets
 Claude outputs
 docs
-showcase
+# The receipt pictures the showcase attaches travel with the image.
+showcase/*
+!showcase/receipts
 deploy
 .github

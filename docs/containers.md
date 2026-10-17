@@ -15,7 +15,7 @@ is described in [running](running.md) and survives only as the showcase's host.
 | `deploy/containers/` (host units for the timers) | **installed at the cutover, 17 October 2026**: the eleven timers fire and the backup service succeeds |
 | `deploy/container-release.sh` and `container-release-remote.sh` | **in use**: the first real run deployed a0bd82a9, the second rolled itself back as designed, the third deployed 42767990; the server side is still rehearsed in CI on every change |
 | Backup through the container (`scripts/backup.sh` with `BACKUP_DATABASE_VIA=compose`, `deploy/containers/private-finances-backup.service`) | **running daily on the container host since 17 October 2026**, proven as a service after its first run failed for the working-directory reason below; still exercised in CI ([backups](backups.md)) |
-| Showcase in a container | not planned yet; it stays on the old host until decided |
+| Showcase in a container | **implemented 17 October 2026**: the `showcase` service, refilled by `showcase-reseed` under a host path unit, served at a public name behind a password at the edge; the host steps are in [the showcase](showcase.md) |
 | Restore proof on the new host from the bucket | not done; the shadow was loaded from a direct dump, not from the bucket |
 | Shadow installation on the destination server | **done 16 October 2026**; see "The shadow, as installed" below |
 | Edge takeover and the domain | **done 17 October 2026**; the other project's change is on its `main` and marked as its deployed commit |
@@ -31,6 +31,8 @@ is described in [running](running.md) and survives only as the showcase's host.
 | `db` | PostgreSQL 16, volume `pgdata`, no published port | `docker compose up` |
 | `app` | the dashboard, `node dist/src/main.js`, loopback port 3300 | `docker compose up` |
 | `telegram` | the Telegram worker, `node dist/src/telegram-cli.js` | `docker compose up` |
+| `showcase` | the invented household in demo mode, loopback port 3301, no configuration mounted ([the showcase](showcase.md)) | `docker compose up` |
+| `showcase-reseed` | profile `tools`; refills the showcase while the host unit holds it stopped | `private-finances-showcase-reseed.service` |
 | `worker` | profile `tools`; one short-lived container per scheduled job | the host's systemd timers |
 
 The image is built from the `Dockerfile`: Node 24.19 as `.nvmrc` says, pnpm
@@ -47,6 +49,7 @@ capabilities dropped and `/tmp` on a tmpfs, and mounts:
 | `$PF_CONFIG_DIR` (`/etc/private-finances`) | `/etc/private-finances`, read-only | `app.env`, `sync.env`, `telegram.env`, `db.env`, `credentials/`, `schedules/` — the same files at the same paths as [credentials](credentials.md) documents |
 | `$PF_STATE_DIR/consent` (`/var/lib/private-finances/consent`) | `/var/lib/private-finances-consent` | the bank-session secrets the consent flow writes |
 | `$PF_STATE_DIR/sync` (`/var/lib/private-finances/sync`) | `/var/lib/private-finances-sync` | the scheduler's state, `worker` only |
+| `$PF_STATE_DIR/showcase` (`/var/lib/private-finances/showcase`) | `/var/lib/private-finances-showcase` | the showcase's PGlite workspace and its refill request and status files; `showcase` and `showcase-reseed` only, which mount nothing else |
 
 The dashboard listens on the loopback interface unless `BIND_ADDRESS` says
 otherwise; compose sets it to the container's every address, and publishes the
@@ -58,19 +61,26 @@ becomes `postgresql://private-finances:<that password>@db:5432/private_finances`
 Peer authentication over the socket does not cross a container boundary.
 
 The variables compose reads from `.env` next to `compose.yaml` on the host:
-`PF_RELEASE`, `PF_UID`, `PF_GID`, and optionally `PF_CONFIG_DIR`,
-`PF_STATE_DIR` and `PF_PORT`. The CI job sets the same variables to a
-throwaway directory under the runner's temp folder.
+`PF_RELEASE`, `PF_UID`, `PF_GID`, `PF_SHOWCASE_ORIGIN` (the showcase's public
+origin, which it checks `Host` against; empty means no check), and optionally
+`PF_CONFIG_DIR`, `PF_STATE_DIR`, `PF_PORT` and `PF_SHOWCASE_PORT`. The CI job
+sets the same variables to a throwaway directory under the runner's temp
+folder.
 
 ## The edge
 
 `deploy/edge/compose.yaml` runs one Caddy that owns ports 80 and 443 on the
 Docker network `edge`, which is created once by hand and belongs to the host.
-`deploy/compose.edge.yaml` is the override that joins the dashboard to it under
-the alias `private-finances`; the Caddyfile proxies the dashboard's name to
+`deploy/compose.edge.yaml` is the override that joins the dashboard and the
+showcase to it under the aliases `private-finances` and
+`private-finances-showcase`; the Caddyfile proxies the dashboard's name to
 `private-finances:3300`, adds HSTS and leaves the `Host` header alone because
-the application checks it against `PUBLIC_ORIGIN`. The dashboard's hostname
-comes from `deploy/edge/.env` on the server. On the server the dashboard is
+the application checks it against `PUBLIC_ORIGIN`. The showcase's name is
+proxied to `private-finances-showcase:3301` behind Caddy's `basic_auth`,
+because demo mode has no login of its own, and is marked `noindex`. Both
+hostnames, the account and its bcrypt hash come from `deploy/edge/.env` on
+the server, which Caddy reads at container start: a change there is applied
+with `docker compose up -d`, not with a reload. On the server the stack is
 started with both files through `COMPOSE_FILE` in `/opt/private-finances/.env`.
 
 The same Caddyfile carries the other project's site blocks, copied verbatim

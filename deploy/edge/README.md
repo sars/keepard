@@ -9,8 +9,17 @@ block per project. The reasons are in
 [ADR 0009](../../docs/adr/0009-containers-on-a-shared-server.md).
 
 Lives at `/opt/edge` on the host: `compose.yaml`, `Caddyfile`, `.env`
-(`PF_DOMAIN`). Hostnames come from `.env` so this repository carries no
-address; the other project's names are public ones and are written out.
+(`PF_DOMAIN`, `PF_DEMO_DOMAIN`, `PF_DEMO_USER`, `PF_DEMO_PASSWORD_HASH`).
+Hostnames come from `.env` so this repository carries no address; the other
+project's names are public ones and are written out. Every variable in
+`.env.example` must be set on the host before a Caddyfile that names it is
+installed: an empty site address fails the whole file, and with it every
+project's site.
+
+The showcase (the invented household, `docs/showcase.md`) has no login of its
+own, so its site block carries one: Caddy's `basic_auth` with one account.
+The hash is made on the host and never leaves it; the password is the
+operator's. `docker compose exec caddy caddy hash-password` prompts for it.
 
 ## Who owns what
 
@@ -19,7 +28,7 @@ address; the other project's names are public ones and are written out.
 | the `edge` network | the host, created once by hand | nobody |
 | this Caddy and its Caddyfile | this directory | a change here, then `docker compose up -d` and `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile` in `/opt/edge` |
 | `hlyna_caddy_data`, `hlyna_caddy_config`, `hlyna_media` | the other project's stack, kept under their old names | that project; this stack mounts them and never creates or removes them |
-| a project's upstream alias (`private-finances`, `hlyna`) | the project's own compose file | that project |
+| a project's upstream alias (`private-finances`, `private-finances-showcase`, `hlyna`) | the project's own compose file | that project |
 
 ## Taking over from the other project's Caddy
 

@@ -1,6 +1,7 @@
 # Private Finances as one Compose stack on a shared server: the dashboard, its
-# own PostgreSQL, the Telegram worker, and a `worker` service that the host's
-# systemd timers run for the scheduled jobs. Nothing is published beyond the
+# own PostgreSQL, the Telegram worker, the showcase (the invented household the
+# public article is photographed against), and a `worker` service that the
+# host's systemd timers run for the scheduled jobs. Nothing is published beyond the
 # loopback interface; HTTPS comes from the separate edge stack in deploy/edge,
 # joined through deploy/compose.edge.yaml.
 #
@@ -9,7 +10,7 @@
 # read-only. The variables and files expected there are listed in
 # docs/containers.md; none of them is in this repository.
 #
-#   docker compose up -d                         # dashboard, database, Telegram
+#   docker compose up -d                         # dashboard, database, Telegram, showcase
 #   docker compose --profile tools run --rm worker node dist/src/schedule.js <instance>
 #
 # Every container runs as PF_UID:PF_GID, the host's private-finances account,
@@ -118,6 +119,54 @@ services:
       resources:
         limits:
           memory: 256M
+
+  # The showcase: demo mode, a PGlite workspace of its own under the state
+  # directory, and no configuration mounted at all — it has nothing to read
+  # there (docs/showcase.md). It has no login of its own, so the edge puts a
+  # password in front of its public name; PF_SHOWCASE_ORIGIN is that name and
+  # the application refuses any other Host.
+  showcase:
+    <<: *application
+    restart: unless-stopped
+    environment:
+      APP_MODE: demo
+      PORT: '3301'
+      BIND_ADDRESS: 0.0.0.0
+      RELEASE_SHA: ${PF_RELEASE:-local}
+      DEMO_DATA_DIR: /var/lib/private-finances-showcase/demo
+      PUBLIC_ORIGIN: ${PF_SHOWCASE_ORIGIN:-}
+    volumes:
+      - ${PF_STATE_DIR:-/var/lib/private-finances}/showcase:/var/lib/private-finances-showcase
+    ports:
+      - '127.0.0.1:${PF_SHOWCASE_PORT:-3301}:3301'
+    deploy:
+      resources:
+        limits:
+          memory: 1280M
+
+  # Refills the showcase. Run by private-finances-showcase-reseed.service on
+  # the host, which stops the showcase first — PGlite allows one process per
+  # data directory — and starts it again afterwards whatever happened.
+  # Profile `tools`, so `up` never starts it; the memory is the seeder's.
+  showcase-reseed:
+    <<: *application
+    profiles: [tools]
+    healthcheck:
+      disable: true
+    restart: 'no'
+    command: ['node', 'scripts/reseed-showcase.mjs']
+    environment:
+      APP_MODE: demo
+      RELEASE_SHA: ${PF_RELEASE:-local}
+      DEMO_DATA_DIR: /var/lib/private-finances-showcase/demo
+      SHOWCASE_MANAGE_SERVICE: 'no'
+      SHOWCASE_DROP_PRIVILEGES: 'no'
+    volumes:
+      - ${PF_STATE_DIR:-/var/lib/private-finances}/showcase:/var/lib/private-finances-showcase
+    deploy:
+      resources:
+        limits:
+          memory: 3G
 
   # Not started by `up`: the host's systemd timers run it, one short-lived
   # container per job, so a job survives a dashboard restart and a release
