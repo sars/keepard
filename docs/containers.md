@@ -15,8 +15,8 @@ is described in [running](running.md) and survives only as the showcase's host.
 | `deploy/containers/` (host units for the timers) | **installed at the cutover, 17 October 2026**: the eleven timers fire and the backup service succeeds |
 | `deploy/container-release.sh` and `container-release-remote.sh` | **in use**: the first real run deployed a0bd82a9, the second rolled itself back as designed, the third deployed 42767990; the server side is still rehearsed in CI on every change |
 | Backup through the container (`scripts/backup.sh` with `BACKUP_DATABASE_VIA=compose`, `deploy/containers/private-finances-backup.service`) | **running daily on the container host since 17 October 2026**, proven as a service after its first run failed for the working-directory reason below; still exercised in CI ([backups](backups.md)) |
-| Showcase in a container | **implemented 17 October 2026**: the `showcase` service, refilled by `showcase-reseed` under a host path unit, served at a public name behind a password at the edge; the host steps are in [the showcase](showcase.md) |
-| Restore proof on the new host from the bucket | not done; the shadow was loaded from a direct dump, not from the bucket |
+| Showcase in a container | **implemented 17 October 2026**: the `showcase` service, refilled by `showcase-reseed` under a host path unit, served at a public name with a sign-in of its own; the host steps are in [the showcase](showcase.md) |
+| Restore proof on the new host from the bucket | **done 17 October 2026**: snapshot `95aa1a3e` restored into a disposable database, 52 tables compared; see [backups](backups.md) |
 | Shadow installation on the destination server | **done 16 October 2026**; see "The shadow, as installed" below |
 | Edge takeover and the domain | **done 17 October 2026**; the other project's change is on its `main` and marked as its deployed commit |
 | Cutover | **done 17 October 2026, 00:40–01:15 Riga time**; see "The cutover, as it went" below |
@@ -31,7 +31,7 @@ is described in [running](running.md) and survives only as the showcase's host.
 | `db` | PostgreSQL 16, volume `pgdata`, no published port | `docker compose up` |
 | `app` | the dashboard, `node dist/src/main.js`, loopback port 3300 | `docker compose up` |
 | `telegram` | the Telegram worker, `node dist/src/telegram-cli.js` | `docker compose up` |
-| `showcase` | the invented household in demo mode, loopback port 3301, no configuration mounted ([the showcase](showcase.md)) | `docker compose up` |
+| `showcase` | the invented household in demo mode, loopback port 3301, reading only `showcase.env` ([the showcase](showcase.md)) | `docker compose up` |
 | `showcase-reseed` | profile `tools`; refills the showcase while the host unit holds it stopped | `private-finances-showcase-reseed.service` |
 | `worker` | profile `tools`; one short-lived container per scheduled job | the host's systemd timers |
 
@@ -76,12 +76,12 @@ showcase to it under the aliases `private-finances` and
 `private-finances-showcase`; the Caddyfile proxies the dashboard's name to
 `private-finances:3300`, adds HSTS and leaves the `Host` header alone because
 the application checks it against `PUBLIC_ORIGIN`. The showcase's name is
-proxied to `private-finances-showcase:3301` behind Caddy's `basic_auth`,
-because demo mode has no login of its own, and is marked `noindex`. Both
-hostnames, the account and its bcrypt hash come from `deploy/edge/.env` on
-the server, which Caddy reads at container start: a change there is applied
-with `docker compose up -d`, not with a reload. On the server the stack is
-started with both files through `COMPOSE_FILE` in `/opt/private-finances/.env`.
+proxied to `private-finances-showcase:3301` and marked `noindex`; the demo
+asks for a sign-in of its own, so the edge adds no password. Both hostnames
+come from `deploy/edge/.env` on the server, which Caddy reads at container
+start: a change there is applied with `docker compose up -d`, not with a
+reload. On the server the stack is started with both files through
+`COMPOSE_FILE` in `/opt/private-finances/.env`.
 
 The same Caddyfile carries the other project's site blocks, copied verbatim
 with only the upstream renamed, and the edge Caddy mounts that project's
@@ -377,6 +377,16 @@ state, the whole release and configuration directories and the account, so
 that nothing of this project is left on the old host. The journal keeps the units' logs,
 which by the logging rule carry no financial descriptions; it is shared with
 the other projects and is left alone.
+
+**Run on 17 October 2026 at 11:59 UTC**, after the restore rehearsal from the
+bucket had passed on the new host and the owner had removed the old server's
+address from the exchange key and the old callback from the bank provider.
+The final dump, 52 tables, is `old-host-final-20261017T115940Z.dump` in the
+new host's `predeploy` directory. The old host was left with the showcase's
+three units, its state, `showcase.env`, the one release it runs and the
+account, until the new host's showcase is reachable at its own name; the
+script's `--with-showcase` run then removes those too, and accepts a host the
+finance half has already left.
 
 From then on there is no rollback to the old host. A failure of the new host
 is answered by [backups](backups.md): the bucket holds the database and

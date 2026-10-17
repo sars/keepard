@@ -15,12 +15,14 @@ its own PostgreSQL, the Telegram worker, and the timers on the host running
 jobs in containers; the release is `deploy/container-release.sh`. The cutover
 loaded the final dump with all 52 tables matching the old host; every bank
 import succeeded at its first firing with the consents carried over; the
-backup runs daily as a service after a working-directory fix; the broker and
-exchange feeds read from the new address. The old host's installation is
-removed by `deploy/decommission-old-host.sh` at the owner's decision; the
-showcase joins the stack as its own service behind a password at the edge
-([the showcase](showcase.md)) and the old host's copy goes with the rest;
-details in [containers](containers.md). Everything
+backup runs daily as a service after a working-directory fix and a restore
+from the bucket was proved on the new host; the broker and exchange feeds read
+from the new address. The old host's finance
+installation was removed by `deploy/decommission-old-host.sh` on 17 October
+2026 at the owner's decision, after one last dump to the new host; the
+showcase joins the stack as its own service with a sign-in of its own
+([the showcase](showcase.md)) and the old host's copy goes once the new one
+answers at its name; details in [containers](containers.md). Everything
 below the next entry about `deploy/release.sh` and the systemd host describes
 the deployment before the move.
 

@@ -173,16 +173,22 @@ layouts and the pull-to-refresh gesture can be photographed — a laptop cannot
 show those, because a phone cannot reach `localhost` and a LAN address is not a
 secure origin, so there is no service worker and no install.
 
-**Demo mode has no login.** It signs itself in, because there is nobody to
-authenticate and nothing real behind it. Put it on a public route as it is and
-it is an open workspace that anybody can browse and write to, refill button
-included. Nothing in the application prevents this; whatever stands in front
-of it is the whole protection. Until 17 October 2026 that was the tailnet: the
-showcase was served by Tailscale on the old host and never funnelled. On the
-container host it is a public name with a password at the edge — Caddy's
-`basic_auth`, one account, the hash in `/opt/edge/.env`
-([the edge](../deploy/edge/README.md)) — and the name is marked `noindex`.
-Take the password away and the rule is broken; there is no second line.
+**Demo mode signs itself in unless it is told not to.** There is nobody to
+authenticate and nothing real behind it, so a demo on a laptop or a tailnet
+has no door. Put that on a public route and it is an open workspace that
+anybody can browse and write to, refill button included. Until 17 October
+2026 the tailnet was the whole protection: the showcase was served by
+Tailscale on the old host and never funnelled. On the container host it has
+a public name, so it has a sign-in of its own: `DEMO_LOGIN_PASSWORD` (and
+`DEMO_LOGIN_EMAIL`, the address typed on the sign-in screen) in
+`showcase.env` seed one account the way the household's own are seeded, the
+same screen, the same session cookie, the same throttling of guesses — rather
+than a browser-level password at the edge, which gets in the way of the
+installable app. The name is also marked `noindex` at the edge. A demo
+started at a public name without `DEMO_LOGIN_PASSWORD` is the open workspace
+again; the compose file reads the file unconditionally so that cannot happen
+by forgetting it. A refill rebuilds the workspace, so it also signs everyone
+out; the account is seeded again when the showcase starts.
 
 It must also keep its workspace in a directory of its own. The compose file
 sets `DEMO_DATA_DIR` to `/var/lib/private-finances-showcase/demo`, a host
@@ -216,10 +222,13 @@ root there.
    install -d -m 700 -o private-finances -g private-finances /var/lib/private-finances/showcase
    ```
 
-2. **The origin.** `PF_SHOWCASE_ORIGIN=https://<demo name>` in
-   `/opt/private-finances/.env`. The application compares the `Host` header
+2. **The origin and the door.** `PF_SHOWCASE_ORIGIN=https://<demo name>` in
+   `/opt/private-finances/.env`: the application compares the `Host` header
    with it and refuses anything else with `invalid_host`; left empty there is
-   no check, which is for CI and laptops only.
+   no check, which is for CI and laptops only. And `showcase.env` beside the
+   household's configuration, root-owned, mode 0640 for the stack's group,
+   with `DEMO_LOGIN_EMAIL` and a `DEMO_LOGIN_PASSWORD` of at least twenty
+   characters; the password stays with the operator.
 
 3. **Start it.** A release does, or `docker compose up -d showcase`. It comes
    up with an empty workspace and is healthy within a minute:
@@ -252,17 +261,15 @@ root there.
    systemctl daemon-reload && systemctl enable --now private-finances-showcase-reseed.path
    ```
 
-6. **The door.** An A record for the demo name pointing at the host. Then in
-   `/opt/edge`: `PF_DEMO_DOMAIN`, `PF_DEMO_USER` and `PF_DEMO_PASSWORD_HASH`
-   in `.env` (`docker compose exec caddy caddy hash-password` makes the hash;
-   the password stays with the operator), the Caddyfile from `deploy/edge/`,
+6. **The name.** An A record for the demo name pointing at the host. Then in
+   `/opt/edge`: `PF_DEMO_DOMAIN` in `.env`, the Caddyfile from `deploy/edge/`,
    then — because Caddy reads `.env` at container start, not at reload —
    `docker compose run --rm caddy caddy validate --config /etc/caddy/Caddyfile`
    and `docker compose up -d`. Recreating Caddy costs every site on the host a
    few seconds; the certificate follows within a minute of the record
    resolving.
 
-7. **Check it.** Open the name, give the password, install it on the phone,
+7. **Check it.** Open the name, sign in, install it on the phone,
    and confirm the header says **Demo mode** and the people are Alex and Sam.
    If it says anything else, stop and do not photograph it.
 
@@ -280,7 +287,7 @@ The page cannot do any of that itself. PGlite allows one process per data
 directory and the running showcase is holding it, so a workspace can only be
 rebuilt while the showcase is stopped — and stopping a container needs the
 Docker socket, which is root, which the demo has none of and should never be
-given: it is a service with no login of its own behind one password.
+given: it is a public service with one shared account.
 
 So the page writes a request file, `private-finances-showcase-reseed.path` on
 the host notices it, and `private-finances-showcase-reseed.service` does the

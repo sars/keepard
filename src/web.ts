@@ -146,6 +146,12 @@ export type WebConfig = {
   port: number;
   mode: 'demo' | 'postgres';
   /**
+   * A demo that asks for a sign-in instead of signing itself in: the account
+   * is seeded by `seedOwners` like the household's own. For a demo at a
+   * public name. Ignored outside demo mode, where there is always a sign-in.
+   */
+  demoLogin?: boolean;
+  /**
    * Where the reseed page leaves its request and reads its status. Absent on a
    * demo nobody has wired a reseed unit to, where the page says so rather than
    * writing a file that nothing will ever read.
@@ -370,7 +376,9 @@ export function web(
   let feedsRunning = false;
   // Demo mode signs itself in — there is nobody to authenticate and nothing
   // real behind it — so it needs one token of its own rather than a session
-  // row. Every other mode reads the token off the session.
+  // row. Every other mode, and a demo with `demoLogin`, reads the token off
+  // the session.
+  const selfSignedIn = config.mode === 'demo' && !config.demoLogin;
   const demoSession: ActiveSession = {
     owner: 'rodion',
     csrf: randomBytes(32).toString('hex'),
@@ -511,16 +519,17 @@ export function web(
         res.writeHead(200, { 'Content-Type': type! });
         res.end(content);
       };
-      const secure = config.mode !== 'demo';
+      // The cookie is marked Secure wherever HTTPS is known to be in front:
+      // always for the real workspace, and for a demo served at an origin.
+      const secure = config.mode !== 'demo' || Boolean(publicHost);
       const token = sessionToken(req);
-      const session =
-        config.mode === 'demo'
-          ? demoSession
-          : token
-            ? await resolveSession(repo.db, token)
-            : null;
+      const session = selfSignedIn
+        ? demoSession
+        : token
+          ? await resolveSession(repo.db, token)
+          : null;
       if (req.method === 'POST' && route === '/api/login') {
-        if (config.mode === 'demo') {
+        if (selfSignedIn) {
           json(404, { error: 'not_found', requestId });
           return;
         }
@@ -656,6 +665,9 @@ export function web(
             new URLSearchParams(),
           ),
           mode: config.mode,
+          // Whether there is a session to sign out of: a self-signed-in demo
+          // has none, a demo behind its own sign-in has one like the rest.
+          signedIn: !selfSignedIn,
           // The members' on-screen names, so the frontend calls them whatever
           // this process decided. Demo mode renames them for screenshots.
           ownerNames: ownerNames(),

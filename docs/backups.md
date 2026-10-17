@@ -268,6 +268,18 @@ and `bank_import_windows` (+3, with `completed_at` after the dump, from the
 worker resuming). The disposable database and the restored file were destroyed
 afterwards.
 
+**Done again on 17 October 2026 on the container host**, against release
+`6f6989b379a0dd6dd1cf45b955147b349bcc81b6` and snapshot `95aa1a3e`, taken by
+the backup service minutes before through the container. `restic check
+--read-data` re-read all 108 packs and found no errors. The snapshot restored
+into a temporary directory and loaded with `pg_restore --exit-on-error
+--no-owner --no-acl` into a disposable database inside the `db` container.
+All 52 tables matched by row count except `backup_runs` (+1, the row written
+after the dump), the transactions matched by a digest of every row, and the
+per-currency totals matched. The disposable database and the restored file
+were destroyed afterwards, and `off-server-restore-verified` was written on
+that host.
+
 **The configuration snapshot was proved the same day.** Snapshot `446ae16a`,
 77 files, restored into a temporary directory; `diff -rq` against the live
 `/etc/private-finances`, `/etc/caddy` and `/etc/postgresql` reported no

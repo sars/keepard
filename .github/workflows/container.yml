@@ -48,6 +48,10 @@ jobs:
           } > "$config/app.env"
           : > "$config/sync.env"
           : > "$config/telegram.env"
+          {
+            echo 'DEMO_LOGIN_EMAIL=demo@example.com'
+            echo 'DEMO_LOGIN_PASSWORD=disposable-ci-only-demo-password'
+          } > "$config/showcase.env"
           # Both ways, because the release rehearsal below runs as root and
           # sees only the file: the way a server does.
           {
@@ -74,6 +78,11 @@ jobs:
           grep -qE ' [1-5] receipts$' seeded.txt
           docker compose up -d --wait showcase
           curl -fsS http://127.0.0.1:3301/health/live
+      - name: Confirm the showcase asks for its sign-in
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3301/api/bootstrap)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST --data 'email=demo@example.com&password=wrong-password-for-the-demo' http://127.0.0.1:3301/api/login)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST --data 'email=demo@example.com&password=disposable-ci-only-demo-password' http://127.0.0.1:3301/api/login)" = 200
       - name: Confirm the schema was applied
         run: |
           schema=$(docker compose exec -T db psql -U private-finances -d private_finances -tAc 'select max(version) from schema_versions')

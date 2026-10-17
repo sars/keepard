@@ -81,6 +81,22 @@ if (mode === 'postgres') await ensureStarterCategories(db);
 // The environment is still where a password is set, exactly as it was under
 // Basic authentication: edit the file on the server and restart. That is also
 // the only way back in, because nothing resets a password by email yet.
+// The demo signs itself in unless DEMO_LOGIN_PASSWORD is set, in which case it
+// has the same sign-in screen as the real workspace with one account behind
+// it: a public demo name needs a door of its own, and a browser-level
+// password gets in the way of the installable app. The workspace is rebuilt
+// by every refill, and the account is seeded again here at the next start.
+const demoLogin = mode === 'demo' && Boolean(process.env.DEMO_LOGIN_PASSWORD);
+if (demoLogin) {
+  await seedOwners(db, [
+    {
+      owner: 'rodion',
+      email: process.env.DEMO_LOGIN_EMAIL ?? 'demo@example.com',
+      password: process.env.DEMO_LOGIN_PASSWORD ?? '',
+    },
+  ]);
+  await forgetExpiredSessions(db);
+}
 if (mode === 'postgres') {
   await seedOwners(db, [
     {
@@ -211,6 +227,7 @@ const server = web(repo, {
   mode,
   release: process.env.RELEASE_SHA ?? 'local',
   publicOrigin: process.env.PUBLIC_ORIGIN,
+  demoLogin,
   monobankJarsExcluded: process.env.MONOBANK_INCLUDE_JARS === 'false',
 });
 let running: Promise<unknown> | null = null;

@@ -250,8 +250,8 @@ function App() {
                     : 'Private workspace'}
                 </div>
               </div>
-              {/* Demo signs itself in and has nothing to sign out of. */}
-              {identity && identity.mode !== 'demo' && (
+              {/* A self-signed-in demo has nothing to sign out of. */}
+              {identity && identity.signedIn && (
                 <Button
                   type="button"
                   variant="ghost"
