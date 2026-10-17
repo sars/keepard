@@ -58,12 +58,24 @@ echo "timers enabled: $timers"
 REMOTE
 
 step 'preflight: the old host is the stopped one'
-on_old <<'REMOTE' | quiet
+# A host the finance half has already left (no list, no dashboard unit) is
+# accepted only for the showcase's own removal.
+showcase_only=$(on_old <<'REMOTE' | quiet
 set -e
-[ -f /etc/private-finances/cutover-disabled-units ] || { echo 'no cutover-disabled-units list: this host was not cut over' >&2; exit 65; }
-# shellcheck disable=SC2046
-active=$(systemctl is-active $(cat /etc/private-finances/cutover-disabled-units) 2>/dev/null | grep -vc '^inactive$' || true)
-[ "$active" = 0 ] || { echo "$active of the disabled units are active" >&2; exit 65; }
+if [ -f /etc/private-finances/cutover-disabled-units ]; then
+  # shellcheck disable=SC2046
+  active=$(systemctl is-active $(cat /etc/private-finances/cutover-disabled-units) 2>/dev/null | grep -vc '^inactive$' || true)
+  [ "$active" = 0 ] || { echo "$active of the disabled units are active" >&2; exit 65; }
+  echo no
+elif [ ! -f /etc/systemd/system/private-finances.service ] && [ -f /etc/systemd/system/private-finances-showcase.service ]; then
+  echo yes
+else
+  echo 'no cutover-disabled-units list: this host was not cut over' >&2; exit 65
+fi
+REMOTE
+)
+[ "$showcase_only" = no ] || [ -n "$with_showcase" ] || { echo 'the finance installation is already gone from the old host; only --with-showcase has anything left to do' >&2; exit 65; }
+on_old <<'REMOTE' | quiet
 systemctl is-active --quiet private-finances-showcase.service && echo 'showcase: running' || echo 'showcase: not running'
 REMOTE
 if [ -n "$with_showcase" ]; then
@@ -77,7 +89,7 @@ REMOTE
 fi
 
 step 'what goes'
-on_old <<'REMOTE' | quiet
+[ "$showcase_only" = yes ] || on_old <<'REMOTE' | quiet
 set -e
 current=$(readlink -f /opt/private-finances/current)
 echo "units:"
@@ -96,6 +108,7 @@ REMOTE
 
 [ "$mode" = --execute ] || { printf '\nDry run. Add --execute to remove.\n'; exit 0; }
 
+if [ "$showcase_only" = no ]; then
 step '1. one last dump of the old database, kept on the new host'
 dump=/var/lib/private-finances/predeploy/old-host-final-$stamp.dump
 ssh -o BatchMode=yes "$old" 'sudo -n -u postgres pg_dump --format=custom private_finances' 2> >(quiet >&2) |
@@ -132,6 +145,7 @@ find /var/lib/private-finances -mindepth 1 -maxdepth 1 ! -name '.bash*' ! -name 
 for release in /opt/private-finances/releases/*; do [ "$release" = "$current" ] || rm -rf "$release"; done
 echo 'files removed'
 REMOTE
+fi
 [ -z "$with_showcase" ] || on_old <<'REMOTE' | quiet
 set -e
 units='private-finances-showcase-reseed.path private-finances-showcase-reseed.service private-finances-showcase.service'

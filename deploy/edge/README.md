@@ -9,17 +9,16 @@ block per project. The reasons are in
 [ADR 0009](../../docs/adr/0009-containers-on-a-shared-server.md).
 
 Lives at `/opt/edge` on the host: `compose.yaml`, `Caddyfile`, `.env`
-(`PF_DOMAIN`, `PF_DEMO_DOMAIN`, `PF_DEMO_USER`, `PF_DEMO_PASSWORD_HASH`).
-Hostnames come from `.env` so this repository carries no address; the other
-project's names are public ones and are written out. Every variable in
-`.env.example` must be set on the host before a Caddyfile that names it is
-installed: an empty site address fails the whole file, and with it every
-project's site.
+(`PF_DOMAIN`, `PF_DEMO_DOMAIN`). Hostnames come from `.env` so this
+repository carries no address; the other project's names are public ones and
+are written out. Every variable in `.env.example` must be set on the host
+before a Caddyfile that names it is installed: an empty site address fails
+the whole file, and with it every project's site. Caddy reads `.env` when its
+container starts, so a change there is applied with `docker compose up -d`,
+which costs every site a few seconds; a Caddyfile change alone is a reload.
 
-The showcase (the invented household, `docs/showcase.md`) has no login of its
-own, so its site block carries one: Caddy's `basic_auth` with one account.
-The hash is made on the host and never leaves it; the password is the
-operator's. `docker compose exec caddy caddy hash-password` prompts for it.
+The showcase (the invented household, `docs/showcase.md`) asks for its own
+sign-in, so its site block only names it, marks it `noindex` and proxies it.
 
 ## Who owns what
 

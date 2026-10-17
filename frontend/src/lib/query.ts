@@ -5,6 +5,8 @@ export type Session = {
   actor: 'rodion' | 'katya';
   csrf: string;
   mode: string;
+  /** Whether there is a session to sign out of; a self-signed-in demo has none. */
+  signedIn?: boolean;
   isAdmin?: boolean;
   /** What to call each member; the demo workspace renames the household. */
   ownerNames?: Partial<Record<'rodion' | 'katya', string>>;

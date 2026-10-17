@@ -29,9 +29,9 @@
 }
 
 # ---- Private Finances showcase -------------------------------------------
-# The invented household the article is photographed against. Demo mode has
-# no login of its own (docs/showcase.md), so this public name carries one
-# here: one account, whose bcrypt hash comes from .env.
+# The invented household the article is photographed against. The demo asks
+# for its own sign-in (docs/showcase.md), so the edge only names it, keeps
+# it out of search engines and proxies it.
 
 {$PF_DEMO_DOMAIN} {
 	encode zstd gzip
@@ -41,9 +41,6 @@
 		Referrer-Policy strict-origin-when-cross-origin
 		X-Robots-Tag "noindex, nofollow"
 		-Server
-	}
-	basic_auth {
-		{$PF_DEMO_USER} {$PF_DEMO_PASSWORD_HASH}
 	}
 	reverse_proxy private-finances-showcase:3301 {
 		lb_try_duration 30s

@@ -121,13 +121,15 @@ services:
           memory: 256M
 
   # The showcase: demo mode, a PGlite workspace of its own under the state
-  # directory, and no configuration mounted at all — it has nothing to read
-  # there (docs/showcase.md). It has no login of its own, so the edge puts a
-  # password in front of its public name; PF_SHOWCASE_ORIGIN is that name and
-  # the application refuses any other Host.
+  # directory, and nothing of the household's mounted — the only file it is
+  # given is showcase.env, with the demo's own sign-in (DEMO_LOGIN_EMAIL,
+  # DEMO_LOGIN_PASSWORD; docs/showcase.md). PF_SHOWCASE_ORIGIN is its public
+  # name, and the application refuses any other Host.
   showcase:
     <<: *application
     restart: unless-stopped
+    env_file:
+      - ${PF_CONFIG_DIR:-/etc/private-finances}/showcase.env
     environment:
       APP_MODE: demo
       PORT: '3301'
