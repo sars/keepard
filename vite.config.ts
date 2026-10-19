@@ -29,10 +29,10 @@ export default defineConfig({
       // browser fetches the manifest with credentials omitted, the server
       // answers 401 and the install prompt never appears.
       useCredentials: true,
-      includeAssets: ['icon.svg', 'fonts/*.woff2'],
+      includeAssets: ['icon.svg', 'favicon.svg', 'fonts/*.woff2'],
       manifest: {
-        name: 'Private Finances',
-        short_name: 'Finances',
+        name: 'Keepard',
+        short_name: 'Keepard',
         description: 'Household spending, reviewed together.',
         start_url: '/',
         display: 'standalone',

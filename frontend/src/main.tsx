@@ -333,7 +333,7 @@ function App() {
               already one tap away from the sidebar, so this only earns its
               place on desktop, where there is no tab bar underneath it. */}
           <footer className="mt-10 hidden flex-wrap items-center justify-between gap-3 border-t py-5 text-xs text-muted-foreground md:flex">
-            <span>Private Finances · Household workspace</span>
+            <span>Keepard · Household workspace</span>
             <a
               className="inline-flex items-center gap-1.5 hover:text-foreground"
               href="/ops"

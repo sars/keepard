@@ -87,8 +87,8 @@ export function refundQuestionPrompt(
       `${ownerNames[owner]}, money arrived that I cannot explain.`,
       received,
       reason === 'from_person'
-        ? 'Only you know whether it repays something you paid for. Open Private Finances to attach it to a purchase, or reply “none” if it repays nothing.'
-        : 'Open Private Finances to attach it to a purchase, or reply “none” if it returns nothing.',
+        ? 'Only you know whether it repays something you paid for. Open Keepard to attach it to a purchase, or reply “none” if it repays nothing.'
+        : 'Open Keepard to attach it to a purchase, or reply “none” if it returns nothing.',
     ].join('\n');
   return [
     `${ownerNames[owner]}, money came back and I will not guess which purchase it returns.`,
@@ -358,7 +358,7 @@ export class RefundQuestions {
           question,
           reply: options.length
             ? 'Reply with the number of the purchase this returns, or “none”.'
-            : 'Reply “none” if this repays nothing, or attach it to a purchase in Private Finances.',
+            : 'Reply “none” if this repays nothing, or attach it to a purchase in Keepard.',
         };
       const current = (
         await tx.query('SELECT * FROM transactions WHERE id=$1 FOR UPDATE', [
@@ -374,7 +374,7 @@ export class RefundQuestions {
         return {
           question,
           reply:
-            'This payment changed since I asked, so I did not link anything. Please check it in Private Finances.',
+            'This payment changed since I asked, so I did not link anything. Please check it in Keepard.',
         };
       }
       if (answer.kind === 'none') {
@@ -413,8 +413,8 @@ export class RefundQuestions {
           question,
           reply:
             error instanceof Conflict
-              ? 'Something changed while I was linking it, so nothing was linked. Please check it in Private Finances.'
-              : 'I could not link that purchase. Please attach it in Private Finances.',
+              ? 'Something changed while I was linking it, so nothing was linked. Please check it in Keepard.'
+              : 'I could not link that purchase. Please attach it in Keepard.',
         };
       }
       await this.close(tx, question.id, 'answered', text);
