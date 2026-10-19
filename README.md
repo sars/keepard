@@ -128,7 +128,7 @@ The original Ukrainian specification remains unchanged in the repository root.
 ## Contact
 
 Rodion Salnik, CTO and co-founder of [Brocoders](https://brocoders.com):
-rodion@brocoders.com. Write if you want to run your own and get stuck, or want
+rodion@brocoders.com or [LinkedIn](https://www.linkedin.com/in/rodik/). Write if you want to run your own and get stuck, or want
 to build something like this together.
 
 ## License
