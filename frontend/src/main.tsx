@@ -245,15 +245,19 @@ function App() {
                   {identity ? owners[identity.actor].name : 'Connecting…'}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {identity?.mode === 'demo' ? (
+                  {identity?.mode === 'demo' && isAdmin ? (
                     <>
                       Demo workspace ·{' '}
                       {/* The refill page is demo-only and served by the
-                          server, not a screen of the app, so a plain link. */}
+                          server, not a screen of the app, so a plain link.
+                          Only member 1 may refill; visitors sign in as
+                          member 2 and are not offered it. */}
                       <a className="underline" href="/showcase/reseed">
                         refill
                       </a>
                     </>
+                  ) : identity?.mode === 'demo' ? (
+                    'Demo workspace'
                   ) : (
                     'Private workspace'
                   )}

@@ -255,6 +255,13 @@
     background: var(--code-bg); color: var(--code-fg); border-radius: 8px; padding: 14px 16px; margin: 16px 0 0;
     font-size: 13px; line-height: 1.7; overflow-x: auto; white-space: pre;
   }
+  .demo { display: grid; gap: 20px; align-items: center; margin-bottom: 16px; border-color: var(--primary); }
+  @media (min-width: 768px) { .demo { grid-template-columns: 1fr auto; } }
+  .demo p { margin: 8px 0 0; color: var(--muted-fg); font-size: 15px; }
+  .login { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 14px 0 0; font-size: 14px; }
+  .login dt { color: var(--muted-fg); }
+  .login dd { margin: 0; overflow-wrap: anywhere; }
+  .login code { background: var(--muted); border-radius: 4px; padding: 1px 6px; }
   .start .card .more { margin-top: auto; padding-top: 16px; font-size: 15px; font-weight: 500; }
 
   /* Story */
@@ -353,6 +360,7 @@
         </a>
       </div>
       <p class="fineprint">
+        <a href="#demo"><span lang="en">Try the online demo →</span><span lang="uk">Спробувати онлайн-демо →</span></a><br>
         <span lang="en">Free. Not a SaaS. About €10 a month for a small server, and you own all of it.</span>
         <span lang="uk">Безкоштовно. Не SaaS. Близько €10 на місяць за невеликий сервер, і все належить вам.</span>
       </p>
@@ -603,7 +611,7 @@
     <ul class="limits">
       <li><strong><span lang="en">You run it yourself</span><span lang="uk">Ви запускаєте його самі</span></strong><span class="d"><span lang="en">You need a server and some comfort with a terminal, Docker and API keys. There is no hosted version.</span><span lang="uk">Потрібні сервер і трохи впевненості з терміналом, Docker і API-ключами. Хостингової версії немає.</span></span></li>
       <li><strong><span lang="en">Ukrainian banks: Monobank only</span><span lang="uk">Українські банки: лише Monobank</span></strong><span class="d"><span lang="en">Other Ukrainian banks do not offer practical access to a private person's own transactions yet.</span><span lang="uk">Інші українські банки поки не дають приватній особі практичного доступу до власних транзакцій.</span></span></li>
-      <li><strong><span lang="en">Built for one household</span><span lang="uk">Зроблено під одну родину</span></strong><span class="d"><span lang="en">Today it expects exactly two people and the Kyiv time zone, and nobody else has installed it yet. Making that configurable is the next piece of work.</span><span lang="uk">Поки що він розрахований рівно на двох людей і київський часовий пояс, і ще ніхто, крім автора, його не встановлював. Зробити це налаштовуваним — наступний крок.</span></span></li>
+      <li><strong><span lang="en">Built for one household</span><span lang="uk">Зроблено під одну родину</span></strong><span class="d"><span lang="en">Exactly two people, named as you like, and the Kyiv time zone. Nobody but its author has installed it yet, so expect rough edges.</span><span lang="uk">Рівно двоє людей (імена задаєте ви) і київський часовий пояс. Крім автора, його ще ніхто не встановлював, тож можливі шорсткості.</span></span></li>
       <li><strong><span lang="en">Not bank-grade security</span><span lang="uk">Не банківський рівень безпеки</span></strong><span class="d"><span lang="en">Careful defaults, encrypted backups and sign-in, but it is your server and your responsibility.</span><span lang="uk">Обережні налаштування, шифровані бекапи й вхід за паролем, але це ваш сервер і ваша відповідальність.</span></span></li>
     </ul>
   </div>
@@ -619,6 +627,17 @@
         <span lang="uk">Спершу спробуйте на ноутбуці</span>
       </h2>
       <p><span lang="en">The demo needs no bank and no keys: it opens a workspace filled with sixteen months of an invented household.</span><span lang="uk">Демо не потребує ні банку, ні ключів: відкриває простір із шістнадцятьма місяцями життя вигаданої родини.</span></p>
+    </div>
+    <div class="card demo" id="demo">
+      <div>
+        <h3><span lang="en">Or look around online first</span><span lang="uk">Або спершу подивіться онлайн</span></h3>
+        <p><span lang="en">The same invented household, on a phone or a laptop. Change anything you like: it is rebuilt every night.</span><span lang="uk">Та сама вигадана родина, з телефона чи ноутбука. Змінюйте що завгодно: щоночі все відновлюється.</span></p>
+        <dl class="login">
+          <dt><span lang="en">Email</span><span lang="uk">Пошта</span></dt><dd><code>demo@keepard.com</code></dd>
+          <dt><span lang="en">Password</span><span lang="uk">Пароль</span></dt><dd><code>keepard-demo-for-everyone</code></dd>
+        </dl>
+      </div>
+      <a class="btn btn-primary" href="https://demo.keepard.com"><span lang="en">Open the demo</span><span lang="uk">Відкрити демо</span></a>
     </div>
     <div class="start">
       <div class="card">

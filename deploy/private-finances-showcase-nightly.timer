@@ -1,0 +1,13 @@
+[Unit]
+Description=Private Finances showcase nightly refill timer
+
+[Timer]
+# Visitors write to the public demo with a published password; this puts the
+# invented household back every night, while almost nobody is looking.
+OnCalendar=*-*-* 03:30:00 Europe/Kyiv
+RandomizedDelaySec=10min
+Persistent=true
+Unit=private-finances-showcase-nightly.service
+
+[Install]
+WantedBy=timers.target

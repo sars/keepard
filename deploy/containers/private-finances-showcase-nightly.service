@@ -1,0 +1,13 @@
+[Unit]
+Description=Private Finances showcase: ask for the nightly refill, through the container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/private-finances
+# Only leaves a request file under PF_STATE_DIR/showcase. The reseed .path
+# unit sees it and runs private-finances-showcase-reseed.service, which stops
+# the showcase, rebuilds the invented household and starts it again.
+ExecStart=/usr/bin/docker compose --profile tools run --rm --quiet-pull showcase-reseed node scripts/request-showcase-reseed.mjs
+TimeoutStartSec=5min

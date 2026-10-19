@@ -616,6 +616,14 @@ export function web(
         json(403, { error: 'admin_required', requestId });
         return;
       }
+      // A public demo shares one published sign-in among its visitors, and
+      // that account is member 2. Refilling stays with member 1, the
+      // operator's private account; a laptop demo signs itself in as member 1
+      // and keeps its refill page. The status route answered above.
+      if (route.startsWith('/showcase/reseed') && actor !== 'rodion') {
+        json(403, { error: 'admin_required', requestId });
+        return;
+      }
       if (req.method === 'GET' && route === '/api/settings') {
         json(200, { settings: await readAppSettings(repo.db) });
         return;

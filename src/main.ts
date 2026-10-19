@@ -89,12 +89,25 @@ if (mode === 'postgres') await ensureStarterCategories(db);
 // by every refill, and the account is seeded again here at the next start.
 const demoLogin = mode === 'demo' && Boolean(process.env.DEMO_LOGIN_PASSWORD);
 if (demoLogin) {
+  // DEMO_LOGIN_* is the operator's own account: member 1, who alone may refill
+  // the demo or change its settings. DEMO_VISITOR_* is the account whose
+  // password is published for visitors: member 2, who can look around and
+  // classify but not rebuild the workspace for everyone else.
   await seedOwners(db, [
     {
       owner: 'rodion',
       email: process.env.DEMO_LOGIN_EMAIL ?? 'demo@example.com',
       password: process.env.DEMO_LOGIN_PASSWORD ?? '',
     },
+    ...(process.env.DEMO_VISITOR_PASSWORD
+      ? [
+          {
+            owner: 'katya' as const,
+            email: process.env.DEMO_VISITOR_EMAIL ?? 'visitor@example.com',
+            password: process.env.DEMO_VISITOR_PASSWORD,
+          },
+        ]
+      : []),
   ]);
   await forgetExpiredSessions(db);
 }
