@@ -214,6 +214,12 @@
   @media (min-width: 768px) { .wide ul { grid-template-columns: repeat(2, max-content); column-gap: 40px; } }
   .wide li { position: relative; padding-left: 24px; font-size: 15px; }
   .wide li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+  .phones { display: flex; justify-content: center; gap: 16px; }
+  .phones img { width: 100%; max-width: 300px; }
+  .phones.two img { max-width: 260px; min-width: 0; flex: 1 1 0; }
+  .more { margin-top: 72px; }
+  .more h3 { font-size: 16px; }
+  .more p { font-size: 14px; }
   .shot { margin: 0 -16px; }
   @media (min-width: 768px) { .shot { margin: 0; } }
 
@@ -268,9 +274,6 @@
   /* Story */
   .story { display: grid; gap: 32px; align-items: start; }
   @media (min-width: 900px) { .story { grid-template-columns: 1fr 1fr; gap: 56px; } }
-  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .stat .value { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-  .stat .what { color: var(--muted-fg); font-size: 14px; }
   .story .copy p:not(.eyebrow) { color: var(--muted-fg); margin: 12px 0 0; }
   .links { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 20px; font-weight: 500; }
 
@@ -310,7 +313,7 @@
       <a href="#cost"><span lang="en">Cost</span><span lang="uk">Вартість</span></a>
       <a href="#start"><span lang="en">Run your own</span><span lang="uk">Запустити своє</span></a>
       <a href="#faq">FAQ</a>
-      <a href="#contact"><span lang="en">Contact</span><span lang="uk">Контакт</span></a>
+      <a href="#contact"><span lang="en">Collaboration</span><span lang="uk">Співпраця</span></a>
     </nav>
     <div class="end">
       <div class="lang" role="group" aria-label="Language / Мова">
@@ -439,70 +442,114 @@
     <div class="section-head">
       <p class="eyebrow"><span lang="en">What it does</span><span lang="uk">Що вміє</span></p>
       <h2>
-        <span lang="en">Built for daily use on a phone</span>
-        <span lang="uk">Зроблено для щоденного користування з телефона</span>
+        <span lang="en">Everything a family budget needs, and nothing it doesn't</span>
+        <span lang="uk">Усе, що потрібно сімейному бюджету, і нічого зайвого</span>
       </h2>
       <p>
-        <span lang="en">Installs as an app on your phone. Screens below are from the demo workspace, filled with an invented household.</span>
-        <span lang="uk">Встановлюється на телефон як застосунок. Екрани нижче — з демо, заповненого вигаданою родиною.</span>
+        <span lang="en">Made for daily use on a phone, where it installs like an app. These screens come from the demo, filled with an invented household.</span>
+        <span lang="uk">Зроблено для щоденного користування з телефона, де він встановлюється як застосунок. Ці екрани — з демо, заповненого вигаданою родиною.</span>
       </p>
     </div>
 
     <div class="feature">
       <div class="copy">
-        <h3><span lang="en">Collects transactions on its own</span><span lang="uk">Сам збирає транзакції</span></h3>
-        <p><span lang="en">Monobank connects directly with its personal API token. Wise, Revolut and other European banks connect through Enable Banking, which is free for your own accounts: you approve access inside your bank's own app.</span><span lang="uk">Monobank підключається напряму через персональний API-токен. Wise, Revolut та інші європейські банки — через Enable Banking, безкоштовний для власних рахунків: доступ підтверджуєте в застосунку самого банку.</span></p>
+        <h3><span lang="en">The month at a glance</span><span lang="uk">Місяць з першого погляду</span></h3>
+        <p><span lang="en">Home answers the question you open the app with: how much have we spent this month, compared with the same days last month. Below it, your own money across personal accounts, and spending day by day.</span><span lang="uk">Головна відповідає на питання, з яким ви відкриваєте застосунок: скільки ми витратили цього місяця порівняно з тими самими днями минулого. Нижче — ваші власні гроші на особистих рахунках і витрати день за днем.</span></p>
         <ul>
-          <li><span lang="en">Daily import, no duplicates on a repeat run</span><span lang="uk">Щоденний імпорт без дублів при повторі</span></li>
-          <li><span lang="en">Balances update themselves</span><span lang="uk">Баланси оновлюються самі</span></li>
-          <li><span lang="en">Cash accounts and cash spending, entered in the app</span><span lang="uk">Готівкові рахунки й витрати — прямо в застосунку</span></li>
+          <li><span lang="en">Payments still waiting for a decision are shown apart, never mixed into the totals</span><span lang="uk">Платежі, що чекають рішення, показані окремо і не змішуються з підсумками</span></li>
+          <li><span lang="en">Any currency, at the day's commercial rate</span><span lang="uk">Будь-яка валюта за комерційним курсом дня</span></li>
+          <li><span lang="en">Every figure opens the payments behind it</span><span lang="uk">Кожна цифра відкриває платежі, з яких складається</span></li>
         </ul>
       </div>
-      <figure class="shot" style="margin-block:0"><img src="img/health.png" width="1100" height="1048" loading="lazy" alt="The AI budget and the bank connections screen"></figure>
+      <div class="phones"><img src="img/feature-home.png" width="520" height="1094" loading="lazy" alt="Home: spent this month, own money, spending day by day"></div>
     </div>
 
     <div class="feature flip">
       <div class="copy">
-        <h3><span lang="en">Classifies, and asks when unsure</span><span lang="uk">Класифікує і питає, коли не впевнений</span></h3>
-        <p><span lang="en">Your rules come first, then what it has already seen, and only then an AI suggestion. Whatever is left goes to a review queue and to Telegram, to you or your partner: what was this payment?</span><span lang="uk">Спочатку ваші правила, потім те, що система вже бачила, і лише тоді пропозиція від AI. Решта йде в чергу на рішення і в Telegram — вам або партнеру: що це за платіж?</span></p>
-        <ul>
-          <li><span lang="en">Your decision always wins over the AI</span><span lang="uk">Ваше рішення завжди важливіше за AI</span></li>
-          <li><span lang="en">Receipt photos from Telegram attach to payments</span><span lang="uk">Фото чеків із Telegram прив'язуються до платежів</span></li>
-          <li><span lang="en">Unresolved payments stay visible, never silently dropped</span><span lang="uk">Нерозібрані платежі видно окремо, вони не зникають</span></li>
-        </ul>
+        <h3><span lang="en">Spot the heavy months</span><span lang="uk">Видно, які місяці були важкими</span></h3>
+        <p><span lang="en">Every month against your own average: the heaviest in colour, the current one hatched. Underneath, what made a heavy month heavy, meaning the categories that ran above their usual and the largest payments.</span><span lang="uk">Кожен місяць порівняно з вашим середнім: найважчі виділені кольором, поточний заштрихований. Під ними — що саме зробило місяць важким: категорії понад звичне і найбільші платежі.</span></p>
       </div>
-      <figure class="shot" style="margin-block:0"><img src="img/review.png" width="1100" height="1048" loading="lazy" alt="The review queue and a payment card"></figure>
+      <div class="phones"><img src="img/feature-months.png" width="520" height="1094" loading="lazy" alt="Month by month, with the average marked and the heaviest months in colour"></div>
     </div>
 
     <div class="feature">
       <div class="copy">
-        <h3><span lang="en">Analytics you can trace</span><span lang="uk">Аналітика, яку можна перевірити</span></h3>
-        <p><span lang="en">By category, by period, by person, in any currency at the day's rate. A table of every category for every month shows at a glance which month went wrong.</span><span lang="uk">За категоріями, періодами, людьми, у будь-якій валюті за курсом дня. Таблиця «кожна категорія, кожен місяць» одразу показує, в якому місяці щось пішло не так.</span></p>
+        <h3><span lang="en">Where the money went</span><span lang="uk">Куди пішли гроші</span></h3>
+        <p><span lang="en">Categories ranked by what they cost, and the largest payments of any month. A table of every category for every month, darker where more was spent, shows a pattern in a second that a spreadsheet hides for a year.</span><span lang="uk">Категорії за тим, скільки вони коштували, і найбільші платежі будь-якого місяця. Таблиця «кожна категорія, кожен місяць», де темніше — більше витрачено, за секунду показує те, що Excel ховає рік.</span></p>
         <ul>
-          <li><span lang="en">Every figure opens the payments behind it</span><span lang="uk">Кожна цифра відкриває платежі, з яких складається</span></li>
-          <li><span lang="en">Refunds reduce spending instead of looking like income</span><span lang="uk">Повернення зменшують витрату, а не виглядають як дохід</span></li>
+          <li><span lang="en">For the whole family or for one person</span><span lang="uk">Для всієї родини або для однієї людини</span></li>
+          <li><span lang="en">Categories with subcategories, named the way you like</span><span lang="uk">Категорії з підкатегоріями, названі як вам зручно</span></li>
         </ul>
       </div>
-      <figure class="shot" style="margin-block:0"><img src="img/analytics.png" width="1100" height="1048" loading="lazy" alt="Spending by category and the category by month table"></figure>
+      <div class="phones two"><img src="img/feature-categories.png" width="520" height="1094" loading="lazy" alt="Where it went: categories and the biggest payments"><img src="img/feature-grid.png" width="520" height="1094" loading="lazy" alt="Every category, every month: a table, darker where more was spent"></div>
+    </div>
+
+    <div class="feature flip">
+      <div class="copy">
+        <h3><span lang="en">Questions instead of chores</span><span lang="uk">Питання замість рутини</span></h3>
+        <p><span lang="en">Your rules sort most payments; what it has seen before sorts more; an AI suggestion handles part of the rest. Whatever is left waits in Review and comes to your family Telegram chat: "what was this payment?" Answer with a reply, while you still remember.</span><span lang="uk">Більшість платежів розкладають ваші правила, частину — те, що система вже бачила, ще частину — пропозиція AI. Решта чекає в «Перегляді» і приходить у сімейний чат у Telegram: «що це був за платіж?» Відповідаєте реплаєм, поки ще пам'ятаєте.</span></p>
+        <ul>
+          <li><span lang="en">Either of you can answer, and it records who did</span><span lang="uk">Відповісти може будь-хто з вас, і видно, хто саме</span></li>
+          <li><span lang="en">Your decision always wins over the AI</span><span lang="uk">Ваше рішення завжди важливіше за AI</span></li>
+        </ul>
+      </div>
+      <div class="phones"><img src="img/feature-review.png" width="520" height="1094" loading="lazy" alt="Review: payments waiting for a decision"></div>
+    </div>
+
+    <div class="feature">
+      <div class="copy">
+        <h3><span lang="en">Every payment, with its story</span><span lang="uk">Кожен платіж зі своєю історією</span></h3>
+        <p><span lang="en">What kind of money it was (personal spending, a transfer between your accounts, an investment, a refund), its category and tags, a receipt photo sent to the family chat, and exactly what the bank recorded.</span><span lang="uk">Що це були за гроші (особиста витрата, переказ між своїми рахунками, інвестиція, повернення), категорія й теги, фото чека з сімейного чату і саме те, що записав банк.</span></p>
+        <ul>
+          <li><span lang="en">Transfers and investments never count as spending</span><span lang="uk">Перекази й інвестиції ніколи не рахуються як витрати</span></li>
+          <li><span lang="en">A refund reduces the purchase it returns</span><span lang="uk">Повернення зменшує покупку, яку повертає</span></li>
+        </ul>
+      </div>
+      <div class="phones"><img src="img/feature-payment.png" width="520" height="1094" loading="lazy" alt="A payment card with type, category, receipt evidence and the bank's record"></div>
     </div>
 
     <div class="feature flip">
       <div class="copy">
         <h3><span lang="en">Everything you own, over time</span><span lang="uk">Усе, що маєте, у часі</span></h3>
-        <p><span lang="en">Accounts, deposits, broker, crypto and cash in one currency, with a snapshot every month and a chart. Bank balances arrive on their own; the rest comes from feeds or a quick monthly entry.</span><span lang="uk">Рахунки, депозити, брокер, крипта й готівка в одній валюті, зі знімком щомісяця і графіком. Баланси банків приходять самі, решта — з фідів або коротким записом раз на місяць.</span></p>
-      </div>
-      <figure class="shot" style="margin-block:0"><img src="img/assets.png" width="1100" height="1048" loading="lazy" alt="Assets: totals and holdings over time"></figure>
-    </div>
-
-    <div class="card wide">
-      <div class="copy">
-        <h3><span lang="en">Tells you when something is off</span><span lang="uk">Каже, коли щось не так</span></h3>
-        <p><span lang="en">One health page shows whether each bank import is alive, when every access consent expires, when the last backup ran and how much of the AI budget is left. It is the difference between "it works" and "I think it works".</span><span lang="uk">Одна сторінка «здоров'я» показує, чи живий імпорт кожного банку, коли спливає кожна згода на доступ, коли був останній бекап і скільки лишилося бюджету на AI. Саме вона відрізняє «працює» від «я думаю, що працює».</span></p>
+        <p><span lang="en">Accounts, deposits, a broker, crypto and cash, valued on a date in one currency. A snapshot every month shows how it grows, how much is invested and how much sits in each currency.</span><span lang="uk">Рахунки, депозити, брокер, крипта й готівка, оцінені на дату в одній валюті. Знімок щомісяця показує, як усе росте, скільки інвестовано і скільки лежить у кожній валюті.</span></p>
         <ul>
-          <li><span lang="en">Encrypted daily backups to separate storage</span><span lang="uk">Щоденні шифровані бекапи на окреме сховище</span></li>
-          <li><span lang="en">A hard monthly cap on AI spending</span><span lang="uk">Жорсткий місячний ліміт на AI</span></li>
+          <li><span lang="en">Bank balances arrive by themselves; the rest comes from feeds or a quick monthly entry</span><span lang="uk">Баланси банків приходять самі, решта — з фідів або коротким записом раз на місяць</span></li>
         </ul>
       </div>
+      <div class="phones two"><img src="img/feature-assets.png" width="520" height="1094" loading="lazy" alt="Assets: everything, invested and liquid"><img src="img/feature-assets-chart.png" width="520" height="1094" loading="lazy" alt="Assets over time and how they divide"></div>
+    </div>
+
+    <div class="feature">
+      <div class="copy">
+        <h3><span lang="en">Your banks, connected read-only</span><span lang="uk">Ваші банки — лише на читання</span></h3>
+        <p><span lang="en">Monobank connects with its personal token, accounts and jars included. Wise, Revolut, Swedbank, LHV and other European banks connect through Enable Banking: you approve access in your bank's own app, and it is free for your own accounts.</span><span lang="uk">Monobank підключається персональним токеном, разом із банками-«банками». Wise, Revolut, Swedbank, LHV та інші європейські банки — через Enable Banking: доступ підтверджуєте в застосунку свого банку, і для власних рахунків це безкоштовно.</span></p>
+        <ul>
+          <li><span lang="en">Each of you approves only your own accounts</span><span lang="uk">Кожен підтверджує лише свої рахунки</span></li>
+          <li><span lang="en">Transactions arrive daily, without duplicates</span><span lang="uk">Транзакції приходять щодня і без дублів</span></li>
+          <li><span lang="en">You see in advance when a bank's access expires</span><span lang="uk">Видно заздалегідь, коли спливає доступ до банку</span></li>
+        </ul>
+      </div>
+      <div class="phones"><img src="img/feature-banks.png" width="520" height="1094" loading="lazy" alt="Bank connections: approve your own accounts"></div>
+    </div>
+
+    <div class="feature flip">
+      <div class="copy">
+        <h3><span lang="en">AI that keeps to a budget</span><span lang="uk">AI, що тримається бюджету</span></h3>
+        <p><span lang="en">You set a monthly maximum, and requests stop before it is reached. One chart shows who actually decided your money: you and your rules, the model, or the defaults. The model only suggests; every total is computed by plain code.</span><span lang="uk">Ви задаєте місячний максимум, і запити зупиняються ще до нього. Один графік показує, хто насправді розклав ваші гроші: ви й ваші правила, модель чи налаштування за замовчуванням. Модель лише пропонує, а всі підсумки рахує звичайний код.</span></p>
+        <ul>
+          <li><span lang="en">Works without AI too, on your rules and your answers</span><span lang="uk">Працює і без AI — на ваших правилах і відповідях</span></li>
+        </ul>
+      </div>
+      <div class="phones"><img src="img/feature-ai-budget.png" width="520" height="1094" loading="lazy" alt="AI spending against its monthly maximum, and who decided the money"></div>
+    </div>
+
+    <div class="cards three more">
+      <div class="card"><h3><span lang="en">Two people, two sign-ins</span><span lang="uk">Двоє людей — два входи</span></h3><p><span lang="en">Each of you has your own login and sees the whole family, with every figure splittable by person.</span><span lang="uk">У кожного свій вхід, і кожен бачить усю родину, а будь-яку цифру можна розбити по людях.</span></p></div>
+      <div class="card"><h3><span lang="en">Installs on your phone</span><span lang="uk">Встановлюється на телефон</span></h3><p><span lang="en">Add it to the home screen and it opens like an app, with pull to refresh.</span><span lang="uk">Додаєте на головний екран, і він відкривається як застосунок, з оновленням потягуванням вниз.</span></p></div>
+      <div class="card"><h3><span lang="en">Cash counts too</span><span lang="uk">Готівка теж рахується</span></h3><p><span lang="en">Cash accounts and cash spending, entered right in the app.</span><span lang="uk">Готівкові рахунки й витрати вносите прямо в застосунку.</span></p></div>
+      <div class="card"><h3><span lang="en">Many currencies</span><span lang="uk">Багато валют</span></h3><p><span lang="en">Show everything in the currency you choose, at each day's rate.</span><span lang="uk">Показуйте все у вибраній валюті за курсом кожного дня.</span></p></div>
+      <div class="card"><h3><span lang="en">A health page</span><span lang="uk">Сторінка «здоров'я»</span></h3><p><span lang="en">Whether every import is alive, when each bank's access expires, when the last backup ran.</span><span lang="uk">Чи живий кожен імпорт, коли спливає доступ до банку, коли був останній бекап.</span></p></div>
+      <div class="card"><h3><span lang="en">Encrypted backups</span><span lang="uk">Шифровані бекапи</span></h3><p><span lang="en">Every day, to storage of your choice, away from the server.</span><span lang="uk">Щодня, у вибране вами сховище, окремо від сервера.</span></p></div>
     </div>
   </div>
 </section>
@@ -663,30 +710,6 @@ pnpm demo</pre>
   </div>
 </section>
 
-<!-- Story -->
-<section id="story">
-  <div class="wrap story">
-    <div class="copy">
-      <p class="eyebrow"><span lang="en">How it was built</span><span lang="uk">Як це зроблено</span></p>
-      <h2>
-        <span lang="en">Nine days with AI agents</span>
-        <span lang="uk">Дев'ять днів з AI-агентами</span>
-      </h2>
-      <p><span lang="en">Keepard was written by AI coding agents under one person's direction, and has been in daily family use since. The repository keeps the working rules the agents follow, the design system they compose from and the checks that hold them to it.</span><span lang="uk">Keepard написали AI-агенти під керівництвом однієї людини, і відтоді ним щодня користується родина. У репозиторії лежать правила, за якими працюють агенти, дизайн-система, з якої вони збирають екрани, і перевірки, які тримають їх у рамках.</span></p>
-      <div class="links">
-        <a data-repo-path="docs/agent-development-model.md" href="https://github.com/sars/private-finances/blob/main/docs/agent-development-model.md"><span lang="en">How agents work on it →</span><span lang="uk">Як над ним працюють агенти →</span></a>
-        <a href="https://github.com/brocoders/inhouse-ai-starter-kit"><span lang="en">InHouse AI Starter Kit →</span><span lang="uk">InHouse AI Starter Kit →</span></a>
-      </div>
-    </div>
-    <div class="stats">
-      <div class="card stat"><div class="value">9</div><div class="what"><span lang="en">days to production</span><span lang="uk">днів до продакшну</span></div></div>
-      <div class="card stat"><div class="value">643</div><div class="what"><span lang="en">commits in that time</span><span lang="uk">коміти за цей час</span></div></div>
-      <div class="card stat"><div class="value">~200</div><div class="what"><span lang="en">merged pull requests</span><span lang="uk">злитих pull request'ів</span></div></div>
-      <div class="card stat"><div class="value">659</div><div class="what"><span lang="en">automated tests</span><span lang="uk">автоматичних тестів</span></div></div>
-    </div>
-  </div>
-</section>
-
 <!-- FAQ -->
 <section id="faq">
   <div class="wrap">
@@ -723,16 +746,16 @@ pnpm demo</pre>
   </div>
 </section>
 
-<!-- Contact -->
+<!-- Collaboration -->
 <section id="contact">
   <div class="wrap story">
     <div class="copy">
-      <p class="eyebrow"><span lang="en">Work together</span><span lang="uk">Співпраця</span></p>
+      <p class="eyebrow"><span lang="en">Collaboration</span><span lang="uk">Співпраця</span></p>
       <h2>
-        <span lang="en">Want something like this built?</span>
-        <span lang="uk">Хочете щось подібне?</span>
+        <span lang="en">Let's build something together</span>
+        <span lang="uk">Давайте зробимо щось разом</span>
       </h2>
-      <p><span lang="en">For your family, your team or your company: an internal tool built with AI agents, with the same rules, checks and care. Or you want to run Keepard and got stuck. Write to me.</span><span lang="uk">Для родини, команди чи компанії: внутрішній інструмент, зроблений з AI-агентами, з тими самими правилами, перевірками й увагою до деталей. Або ви хочете запустити Keepard і застрягли. Пишіть.</span></p>
+      <p><span lang="en">Want to adapt Keepard for your family or team, add your bank, or build a similar tool for your company? I'm open to collaboration. Write to me.</span><span lang="uk">Хочете підлаштувати Keepard під свою родину чи команду, додати свій банк або зробити схожий інструмент для своєї компанії? Я відкритий до співпраці — пишіть.</span></p>
     </div>
     <div class="card">
       <h3>Rodion Salnik</h3>
@@ -742,7 +765,7 @@ pnpm demo</pre>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
           rodion@brocoders.com
         </a>
-        <a class="btn btn-ghost" data-linkedin hidden href="https://www.linkedin.com/in/rodik/">
+        <a class="btn btn-ghost" href="https://www.linkedin.com/in/rodik/">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.5h4V21H3V9.5Zm6.5 0h3.8v1.6h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.1c0-1.22-.02-2.78-1.7-2.78-1.7 0-1.96 1.33-1.96 2.7V21h-4V9.5Z"/></svg>
           LinkedIn
         </a>
@@ -788,9 +811,6 @@ pnpm demo</pre>
 <script>
   // The repository lives in one place so a rename is a one-line change.
   var REPO = "sars/private-finances";
-  // The LinkedIn button stays hidden while this is empty.
-  var LINKEDIN = "https://www.linkedin.com/in/rodik/";
-  if (LINKEDIN) document.querySelectorAll("[data-linkedin]").forEach(function (a) { a.href = LINKEDIN; a.hidden = false; });
   var base = "https://github.com/" + REPO;
   document.querySelectorAll("[data-repo]").forEach(function (a) { a.href = base; });
   document.querySelectorAll("[data-repo-fork]").forEach(function (a) { a.href = base + "/fork"; });
