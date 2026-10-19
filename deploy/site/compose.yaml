@@ -1,0 +1,44 @@
+# The Keepard landing page: the static files of site/, served by a small Caddy
+# of its own on the `edge` network. The edge proxy (deploy/edge) holds
+# keepard.com and its certificate and forwards here, so this container has no
+# port on the host and shares nothing with the application or the showcase.
+#
+# deploy/site-release.sh puts each release of site/ under
+# /opt/keepard-site/releases/<commit> and points `current` at it. The
+# container serves `current` read-only and needs no restart for a new release.
+name: keepard-site
+services:
+  site:
+    image: caddy:2.10
+    restart: unless-stopped
+    command:
+      ['caddy', 'file-server', '--root', '/srv/current', '--listen', ':8080']
+    user: '65534:65534'
+    read_only: true
+    tmpfs:
+      - /config:mode=1777
+      - /data:mode=1777
+    volumes:
+      - /opt/keepard-site:/srv:ro
+    networks:
+      edge:
+        aliases:
+          - keepard-site
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+networks:
+  edge:
+    external: true
+    name: edge
