@@ -26,6 +26,12 @@ services:
           - keepard-site
     cap_drop:
       - ALL
+    # The official image grants /usr/bin/caddy this capability on the file, and
+    # the kernel refuses to run a binary whose file capabilities are outside
+    # the container's bounding set ("exec: operation not permitted"). It is the
+    # one the edge proxy keeps too; the server listens on 8080 regardless.
+    cap_add:
+      - NET_BIND_SERVICE
     security_opt:
       - no-new-privileges:true
     deploy:
