@@ -49,6 +49,16 @@ Verified after the switch: the app and Telegram worker read Rodion/Katya and
 the showcase Alex/Sam; the guest signs in (member 2, not admin) and gets 403 on
 `/showcase/reseed`; both public names answer `/health/live`.
 
+**The landing page went live at keepard.com the same evening** (PRs #181 and
+#182). It is served by a container of its own (`deploy/site/compose.yaml`) behind
+the edge proxy, with www redirecting to the bare domain. It is published with
+`bash deploy/site-release.sh hlyna`. The edge Caddyfile was edited in place
+after a backup and validation, then reloaded: Hlyna, the dashboard and the
+showcase answered exactly as before. The first start failed in a restart
+loop, because Caddy's binary needs `NET_BIND_SERVICE` in the bounding set;
+PR #182 fixed it before the proxy pointed at the container. kipard.com still
+points elsewhere and has no block yet.
+
 **8def230ee40533ed739a539052886512c9d6c072**, superseded October 19, 2026, live since October 17, 2026 at
 schema version 68, deployed with `deploy/container-release.sh`: the showcase
 in the stack with a sign-in of its own at its public name, the receipt
