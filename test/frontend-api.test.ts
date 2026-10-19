@@ -26,7 +26,7 @@ test('frontend shell and JSON APIs preserve authentication, owner scope, CSRF an
   await writeFile(join(frontend, 'assets/app.css'), 'body { color: black; }');
   await writeFile(
     join(frontend, 'manifest.webmanifest'),
-    '{"name":"Private Finances","start_url":"/"}',
+    '{"name":"Keepard","start_url":"/"}',
   );
   await writeFile(
     join(frontend, 'assets/app-Abcd1234.js'),

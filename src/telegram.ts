@@ -939,12 +939,12 @@ export class TelegramClarifications {
       return settle(
         'ignored',
         'the message replied to is a refund question that is no longer open',
-        'This question is no longer open, so nothing was saved. Open the payment in Private Finances if it needs changing.',
+        'This question is no longer open, so nothing was saved. Open the payment in Keepard if it needs changing.',
       );
     return settle(
       'ignored',
       'the message replied to is not an open question',
-      'I could not link this to an open question about a payment, so nothing was saved. Reply directly to the question about that payment, or decide it in Private Finances.',
+      'I could not link this to an open question about a payment, so nothing was saved. Reply directly to the question about that payment, or decide it in Keepard.',
     );
   }
   /** Send one queued note: a 👀 on the member's message, then the answer under

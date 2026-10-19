@@ -58,7 +58,7 @@ export default function SignIn() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-lg font-semibold tracking-tight">
-            Private Finances
+            Keepard
           </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">
             Sign in to the household workspace.

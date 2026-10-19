@@ -313,7 +313,7 @@ test('money from a person is asked about without options and only the owner can 
     assert.doesNotMatch(fake.sent[0]!.text, /^1 — /m);
     // A number means nothing without options; the app is where it is attached.
     assert.equal(await questions.receive(answer('1')), true);
-    assert.match(fake.replies[0]!.text, /Private Finances/);
+    assert.match(fake.replies[0]!.text, /Keepard/);
     assert.equal((await new Refunds(db).list('rodion')).length, 0);
   } finally {
     await db.close();

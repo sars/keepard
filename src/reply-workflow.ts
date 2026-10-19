@@ -228,7 +228,7 @@ export class TelegramReplyWorkflow {
       this.db,
       this.settings.chatId,
       Number(item.input_message_id),
-      `I could not turn this answer into a decision, so nothing was saved. Please decide the payment in Private Finances.${reviewLink(this.settings, String(item.transaction_id))}`,
+      `I could not turn this answer into a decision, so nothing was saved. Please decide the payment in Keepard.${reviewLink(this.settings, String(item.transaction_id))}`,
     );
   }
   async dispatchOne(): Promise<string> {
@@ -490,7 +490,7 @@ export class TelegramReplyWorkflow {
           tx,
           this.settings.chatId,
           Number(message!.message_id),
-          'This suggestion is only confirmed or rejected: reply “confirm” or “reject” to it, or decide the payment in Private Finances.',
+          'This suggestion is only confirmed or rejected: reply “confirm” or “reject” to it, or decide the payment in Keepard.',
         );
         return 'ignored';
       }
