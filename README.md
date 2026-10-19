@@ -65,6 +65,8 @@ Open http://127.0.0.1:3300. See [the showcase](docs/showcase.md).
 
 ## Running your own
 
+Start with [First install](docs/first-install.md) and the example
+configuration in [deploy/config-examples](deploy/config-examples/README.md).
 Today it runs as a Docker Compose stack (the application, PostgreSQL, the
 Telegram worker and a job runner for imports, with timers on the host) behind a
 reverse proxy, with configuration files in `/etc/private-finances/`. [Containers](docs/containers.md) describes the stack,
@@ -83,11 +85,11 @@ Expect to read code. What will get in your way today:
 - **One time zone.** Months and days are counted in `Europe/Riga`, which has
   the same offset as Kyiv all year. Elsewhere, month boundaries will be off by
   a few hours.
-- **No configuration templates yet.** The Compose file reads `app.env`,
-  `db.env`, `telegram.env`, `sync.env` and `showcase.env`, and their variables
-  are described across the docs rather than in example files.
-- **The setup guides describe a migration**, not a first install on a fresh
-  server.
+- **The first-install guide is new and untested.** [First
+  install](docs/first-install.md) walks through a fresh server, with example
+  configuration in [deploy/config-examples](deploy/config-examples/README.md),
+  but nobody has followed it end to end yet. Its "Known gaps" list says what
+  is still tied to the original server.
 - **Ukrainian banks: Monobank only.** The interface is in English.
 
 Making these configurable is the next piece of work. Issues and pull requests
@@ -110,6 +112,7 @@ project](docs/agent-development-model.md). The approach grew into the
 - [Credential sources, storage and renewal](docs/credentials.md)
 - [Telegram setup](docs/telegram-setup.md)
 - [Bringing it up: laptop, release, and rebuilding from nothing](docs/running.md)
+- [First install on a fresh server](docs/first-install.md)
 - [Containers](docs/containers.md)
 - [Development and tests](docs/development.md)
 - [The showcase workspace](docs/showcase.md)
