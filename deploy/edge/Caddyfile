@@ -48,6 +48,27 @@
 	}
 }
 
+# ---- Keepard landing page ------------------------------------------------
+# Static files from their own container (deploy/site); public names, so they
+# are written out. The bare domain is the address; www redirects to it.
+www.keepard.com {
+	redir https://keepard.com{uri} permanent
+}
+
+keepard.com {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	reverse_proxy keepard-site:8080 {
+		lb_try_duration 10s
+		lb_try_interval 250ms
+	}
+}
+
 # ---- Hlyna ---------------------------------------------------------------
 # Moved here verbatim from that project's own Caddyfile, except the upstream
 # name. Its repository documents the behaviour; change it there first.

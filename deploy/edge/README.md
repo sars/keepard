@@ -17,6 +17,20 @@ the whole file, and with it every project's site. Caddy reads `.env` when its
 container starts, so a change there is applied with `docker compose up -d`,
 which costs every site a few seconds; a Caddyfile change alone is a reload.
 
+The Caddyfile is mounted as a single file, so edit it in place (or `cat` the
+new version over it). Replacing it with `mv` or `install` gives it a new
+inode, and the running container keeps reading the old one. Validate first in
+a throwaway container with the same `.env`:
+
+```sh
+docker run --rm --env-file /opt/edge/.env -v /tmp/Caddyfile.new:/etc/caddy/Caddyfile:ro \
+  caddy:2.10 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
+The Keepard landing page (keepard.com, www redirecting to it) is a site block
+here and a container of its own, `deploy/site/compose.yaml`; see
+[site/README.md](../../site/README.md).
+
 The showcase (the invented household, `docs/showcase.md`) asks for its own
 sign-in, so its site block only names it, marks it `noindex` and proxies it.
 

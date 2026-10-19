@@ -4,7 +4,25 @@ The public page meant for keepard.com: what the project is, who it is for, and
 how to fork and run your own. One static `index.html`, no build step and no
 third-party requests except the GitHub API call that fills in the star count.
 
-State: **draft, not deployed.** Hosting and the final name are still open.
+## How it is served
+
+On the container host, in a container of its own: `deploy/site/compose.yaml`
+runs a small Caddy that serves `/opt/keepard-site/current` read-only on the
+`edge` network, and the edge proxy (`deploy/edge/Caddyfile`) answers for
+keepard.com, redirects www.keepard.com to it, and holds the certificate. The
+page shares nothing with the application or the showcase.
+
+To publish what is on `origin/main`:
+
+```sh
+bash deploy/site-release.sh hlyna
+```
+
+It copies `site/` (without this README) to
+`/opt/keepard-site/releases/<commit>`, switches `current` to it in one rename,
+starts or updates the container, and checks that the container serves the
+page. It keeps the three newest releases; to go back, run it again with an
+older commit as the second argument.
 
 ## Preview
 
