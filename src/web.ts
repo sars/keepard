@@ -470,11 +470,12 @@ export function web(
         return;
       }
       // Besides the hashed bundle under /assets/, the built frontend has a few
-      // files at its root: the self-hosted font subsets, the app icon, and the
+      // files at its root: the self-hosted font subsets, the app icon and the
+      // tab's favicon, and the
       // installable app's manifest and service worker. Named explicitly so the
       // root never becomes a general file server.
       const rootFile =
-        /^\/(?:fonts\/[A-Za-z0-9_-]+\.woff2|icon(?:-\d+)?\.(?:svg|png)|manifest\.webmanifest|sw\.js|registerSW\.js|workbox-[A-Za-z0-9_-]+\.js)$/.test(
+        /^\/(?:fonts\/[A-Za-z0-9_-]+\.woff2|icon(?:-\d+)?\.(?:svg|png)|favicon\.svg|manifest\.webmanifest|sw\.js|registerSW\.js|workbox-[A-Za-z0-9_-]+\.js)$/.test(
           route,
         );
       const shellRoute =
