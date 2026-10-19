@@ -76,6 +76,11 @@ def main():
             # here, and nothing here may be replaced by one.
             if re.fullmatch(r"showcase/receipts/[a-z0-9-]+\.jpg", name):
                 continue
+            # The landing page's screenshots, taken from the demo workspace
+            # (the invented household of the showcase). A screenshot of the
+            # real dashboard never belongs here.
+            if re.fullmatch(r"site/img/[a-z0-9-]+\.png", name):
+                continue
             errors.append(f"Binary file requires an explicit review policy: {name}")
             continue
         if any(pattern.search(content) for pattern in secret_patterns):
