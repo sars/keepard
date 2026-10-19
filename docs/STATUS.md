@@ -26,7 +26,30 @@ leaving nothing of the project there; details in [containers](containers.md). Ev
 below the next entry about `deploy/release.sh` and the systemd host describes
 the deployment before the move.
 
-**8def230ee40533ed739a539052886512c9d6c072**, live since October 17, 2026 at
+**0a86405b99bd83afd9971c45c88fa812e8c31c04**, live since October 19, 2026 at
+schema version 68, deployed with `deploy/container-release.sh` from 4261925:
+`app`, `db`, `showcase` and the Telegram worker running, 4,466 transactions at
+verification, no migration. It carries PRs #176 to #179:
+- **Members named in settings.** `MEMBER_1_NAME`/`MEMBER_2_NAME` name the
+  members (Alex and Sam by default). The server's `app.env` sets Rodion and
+  Katya; this was added, with a backup, before the release. The old login and
+  Telegram variables still work.
+- **A public demo.** A visitor account (`guest@keepard.com`, password
+  published on the landing page) is member 2 and gets 403 on the refill page.
+  `private-finances-showcase-nightly.timer` is installed and enabled on the
+  host and refills the demo at about 03:30 Kyiv time; its first run is the
+  night of October 20.
+- **The Keepard name and logo.** The safe is the app icon, favicon and sidebar
+  mark, and the app is called Keepard on screen and in Telegram.
+- **Public-repository work:** the landing page in `site/` (not deployed),
+  the AGPL-3.0 license, the public README, example configuration and a
+  first-install guide.
+
+Verified after the switch: the app and Telegram worker read Rodion/Katya and
+the showcase Alex/Sam; the guest signs in (member 2, not admin) and gets 403 on
+`/showcase/reseed`; both public names answer `/health/live`.
+
+**8def230ee40533ed739a539052886512c9d6c072**, superseded October 19, 2026, live since October 17, 2026 at
 schema version 68, deployed with `deploy/container-release.sh`: the showcase
 in the stack with a sign-in of its own at its public name, the receipt
 pictures in the image, the refill watcher on the host, and the records of the
