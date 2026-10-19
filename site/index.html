@@ -43,6 +43,7 @@
     --border: #e5e7eb;
     --primary: #3b82f6;
     --primary-strong: #2563eb;
+    --link: #2563eb;
     --primary-soft: #eff6ff;
     --primary-fg: #ffffff;
     --positive: #059669;
@@ -61,6 +62,7 @@
       --muted-fg: #9ca3af;
       --border: #1f2937;
       --primary-soft: #0b1a33;
+      --link: #60a5fa;
       --code-bg: #0b1220;
       --code-fg: #e5e7eb;
       --shadow: none;
@@ -75,6 +77,7 @@
     --muted-fg: #9ca3af;
     --border: #1f2937;
     --primary-soft: #0b1a33;
+    --link: #60a5fa;
     --code-bg: #0b1220;
     --code-fg: #e5e7eb;
     --shadow: none;
@@ -86,6 +89,7 @@
   html[lang="uk"] body [lang="en"] { display: none !important; }
 
   *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html { scroll-behavior: smooth; scroll-padding-top: 72px; }
   body {
     margin: 0;
@@ -96,10 +100,8 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  a { color: var(--primary-strong); text-decoration: none; }
+  a { color: var(--link); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) a { color: #60a5fa; } }
-  :root[data-theme="dark"] a { color: #60a5fa; }
   img { max-width: 100%; height: auto; display: block; }
   code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
@@ -153,9 +155,7 @@
   section { padding: 72px 0; }
   @media (min-width: 768px) { section { padding: 96px 0; } }
   section + section { border-top: 1px solid var(--border); }
-  .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary-strong); margin: 0 0 12px; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eyebrow { color: #60a5fa; } }
-  :root[data-theme="dark"] .eyebrow { color: #60a5fa; }
+  .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--link); margin: 0 0 12px; }
   h1, h2, h3 { letter-spacing: -0.02em; line-height: 1.15; margin: 0; }
   h1 { font-size: clamp(34px, 6vw, 56px); font-weight: 700; }
   h2 { font-size: clamp(26px, 4vw, 36px); font-weight: 650; }
@@ -307,6 +307,7 @@
       <a href="#cost"><span lang="en">Cost</span><span lang="uk">Вартість</span></a>
       <a href="#start"><span lang="en">Run your own</span><span lang="uk">Запустити своє</span></a>
       <a href="#faq">FAQ</a>
+      <a href="#contact"><span lang="en">Contact</span><span lang="uk">Контакт</span></a>
     </nav>
     <div class="end">
       <div class="lang" role="group" aria-label="Language / Мова">
@@ -602,7 +603,7 @@
     <ul class="limits">
       <li><strong><span lang="en">You run it yourself</span><span lang="uk">Ви запускаєте його самі</span></strong><span class="d"><span lang="en">You need a server and some comfort with a terminal, Docker and API keys. There is no hosted version.</span><span lang="uk">Потрібні сервер і трохи впевненості з терміналом, Docker і API-ключами. Хостингової версії немає.</span></span></li>
       <li><strong><span lang="en">Ukrainian banks: Monobank only</span><span lang="uk">Українські банки: лише Monobank</span></strong><span class="d"><span lang="en">Other Ukrainian banks do not offer practical access to a private person's own transactions yet.</span><span lang="uk">Інші українські банки поки не дають приватній особі практичного доступу до власних транзакцій.</span></span></li>
-      <li><strong><span lang="en">Built for one household</span><span lang="uk">Зроблено під одну родину</span></strong><span class="d"><span lang="en">It fits two people sharing a budget. Expect to adapt categories and settings to yours.</span><span lang="uk">Розрахований на двох людей зі спільним бюджетом. Категорії й налаштування доведеться підлаштувати під себе.</span></span></li>
+      <li><strong><span lang="en">Built for one household</span><span lang="uk">Зроблено під одну родину</span></strong><span class="d"><span lang="en">Today it expects exactly two people and the Kyiv time zone, and nobody else has installed it yet. Making that configurable is the next piece of work.</span><span lang="uk">Поки що він розрахований рівно на двох людей і київський часовий пояс, і ще ніхто, крім автора, його не встановлював. Зробити це налаштовуваним — наступний крок.</span></span></li>
       <li><strong><span lang="en">Not bank-grade security</span><span lang="uk">Не банківський рівень безпеки</span></strong><span class="d"><span lang="en">Careful defaults, encrypted backups and sign-in, but it is your server and your responsibility.</span><span lang="uk">Обережні налаштування, шифровані бекапи й вхід за паролем, але це ваш сервер і ваша відповідальність.</span></span></li>
     </ul>
   </div>
@@ -707,6 +708,34 @@ pnpm demo</pre>
   </div>
 </section>
 
+<!-- Contact -->
+<section id="contact">
+  <div class="wrap story">
+    <div class="copy">
+      <p class="eyebrow"><span lang="en">Work together</span><span lang="uk">Співпраця</span></p>
+      <h2>
+        <span lang="en">Want something like this built?</span>
+        <span lang="uk">Хочете щось подібне?</span>
+      </h2>
+      <p><span lang="en">For your family, your team or your company: an internal tool built with AI agents, with the same rules, checks and care. Or you want to run Keepard and got stuck. Write to me.</span><span lang="uk">Для родини, команди чи компанії: внутрішній інструмент, зроблений з AI-агентами, з тими самими правилами, перевірками й увагою до деталей. Або ви хочете запустити Keepard і застрягли. Пишіть.</span></p>
+    </div>
+    <div class="card">
+      <h3>Rodion Salnik</h3>
+      <p><span lang="en">CTO and co-founder of</span><span lang="uk">CTO і співзасновник</span> <a href="https://brocoders.com">Brocoders</a></p>
+      <div class="ctas" style="margin-top:20px">
+        <a class="btn btn-primary" href="mailto:rodion@brocoders.com?subject=Keepard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          rodion@brocoders.com
+        </a>
+        <a class="btn btn-ghost" data-linkedin hidden href="#">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.5h4V21H3V9.5Zm6.5 0h3.8v1.6h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.1c0-1.22-.02-2.78-1.7-2.78-1.7 0-1.96 1.33-1.96 2.7V21h-4V9.5Z"/></svg>
+          LinkedIn
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- Final CTA -->
 <section class="final">
   <div class="wrap">
@@ -737,13 +766,16 @@ pnpm demo</pre>
 <footer>
   <div class="wrap">
     <span><span lang="en">Made by</span><span lang="uk">Зробив</span> <a href="https://github.com/sars">Rodion Salnik</a> · <a href="https://brocoders.com">Brocoders</a></span>
-    <span><a data-repo href="https://github.com/sars/private-finances">GitHub</a></span>
+    <span><a data-repo href="https://github.com/sars/private-finances">GitHub</a> · <a href="mailto:rodion@brocoders.com"><span lang="en">Contact</span><span lang="uk">Контакт</span></a> · <a data-repo-path="LICENSE" href="https://github.com/sars/private-finances/blob/main/LICENSE">AGPL-3.0</a></span>
   </div>
 </footer>
 
 <script>
   // The repository lives in one place so a rename is a one-line change.
   var REPO = "sars/private-finances";
+  // The LinkedIn button stays hidden until this holds a profile URL.
+  var LINKEDIN = "";
+  if (LINKEDIN) document.querySelectorAll("[data-linkedin]").forEach(function (a) { a.href = LINKEDIN; a.hidden = false; });
   var base = "https://github.com/" + REPO;
   document.querySelectorAll("[data-repo]").forEach(function (a) { a.href = base; });
   document.querySelectorAll("[data-repo-fork]").forEach(function (a) { a.href = base + "/fork"; });
