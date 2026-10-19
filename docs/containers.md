@@ -59,6 +59,9 @@ change and the systemd units do not set it, so nothing changes for them.
 `db.env` is new: it holds `POSTGRES_PASSWORD`, and `DATABASE_URL` in `app.env`
 becomes `postgresql://private-finances:<that password>@db:5432/private_finances`.
 Peer authentication over the socket does not cross a container boundary.
+`BACKUP_DIRECTORY` is dropped from `app.env`: the systemd host's pre-import
+local dumps have no counterpart here, and the daily off-server backup carries
+the signal on Home ([credentials](credentials.md)).
 
 The variables compose reads from `.env` next to `compose.yaml` on the host:
 `PF_RELEASE`, `PF_UID`, `PF_GID`, `PF_SHOWCASE_ORIGIN` (the showcase's public

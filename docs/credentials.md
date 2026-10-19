@@ -203,10 +203,14 @@ by the service manager. Secret files must be readable by their intended service
 user and inaccessible to unrelated users; mode 0600 and private directories with
 mode 0700 require correct ownership.
 
-**`BACKUP_DIRECTORY` is not a secret and must be set in `app.env`** —
-`/var/lib/private-finances-backups`, the directory `deploy/local-backup.py`
-writes to. Without it the problems block cannot tell that a backup has stopped,
-and says nothing rather than guessing there is none. The application only lists
+**`BACKUP_DIRECTORY` is not a secret and, on the systemd host, must be set in
+`app.env`** — `/var/lib/private-finances-backups`, the directory
+`deploy/local-backup.py` writes to. Without it the problems block cannot tell
+that a backup has stopped, and says nothing rather than guessing there is
+none. **On the container host it is left unset**: nothing writes pre-import
+dumps there, the daily off-server backup is the backup and has its own rule on
+Home, and the variable left in place made Home say "No database backup has
+been taken" for two days after the move (removed on 19 October 2026). The application only lists
 the directory and reads the filenames, which are nanosecond timestamps; it never
 opens a dump, and must not be able to. Listing requires execute permission on
 the directory for the service user. Never make secret files world-readable to
