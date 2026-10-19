@@ -77,9 +77,9 @@ reverse proxy, with configuration files in `/etc/private-finances/`. [Containers
 It was built for one household and has not yet been installed by anyone else.
 Expect to read code. What will get in your way today:
 
-- **Exactly two people.** The two members are built in. Their sign-in comes
-  from `RODION_EMAIL`/`RODION_PASSWORD` and `KATYA_EMAIL`/`KATYA_PASSWORD`, and
-  their display names are set in `src/account-names.ts`.
+- **Exactly two people.** Name them with `MEMBER_1_NAME` and `MEMBER_2_NAME`
+  (Alex and Sam by default) and give each a sign-in with `MEMBER_n_EMAIL` and
+  `MEMBER_n_PASSWORD`. A third member is not supported.
 - **One time zone.** Months and days are counted in `Europe/Riga`, which has
   the same offset as Kyiv all year. Elsewhere, month boundaries will be off by
   a few hours.

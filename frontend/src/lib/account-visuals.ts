@@ -183,8 +183,8 @@ export const owners: Record<
   Owner,
   { name: string; initial: string; color: string }
 > = {
-  rodion: { name: 'Rodion', initial: 'R', color: 'var(--chart-1)' },
-  katya: { name: 'Katya', initial: 'K', color: 'var(--chart-3)' },
+  rodion: { name: 'Alex', initial: 'A', color: 'var(--chart-1)' },
+  katya: { name: 'Sam', initial: 'S', color: 'var(--chart-3)' },
 };
 
 /**

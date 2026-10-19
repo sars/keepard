@@ -3,6 +3,7 @@ import type { Database, Executor, Row } from './database.js';
 import { isSettlementOnly, type Owner } from './domain.js';
 import type { ReportContent } from './reports.js';
 import { currencyExponent } from './fx.js';
+import { memberNames } from './account-names.js';
 
 export interface TelegramConfig {
   chatId: string;
@@ -53,10 +54,7 @@ export interface TelegramTransport {
   ): Promise<{ messageId: number }>;
 }
 /** How the bot writes each member's name when it speaks to them. */
-export const ownerNames: Record<Owner, string> = {
-  rodion: 'Rodion',
-  katya: 'Katya',
-};
+export const ownerNames: Readonly<Record<Owner, string>> = memberNames;
 /**
  * The mentions for a message that addresses members by name. Each name is
  * looked for once, in the order given, starting after the previous one: the

@@ -28,7 +28,7 @@ export const synthetic: TransactionInput[] = [
     bookedAt: '2026-09-03T10:00:00.000Z',
     currency: 'UAH',
     amountMinor: '-100000',
-    description: 'Transfer to Katya — example',
+    description: 'Transfer to Sam — example',
   },
   {
     source: 'synthetic',
@@ -38,7 +38,7 @@ export const synthetic: TransactionInput[] = [
     bookedAt: '2026-09-03T10:01:00.000Z',
     currency: 'UAH',
     amountMinor: '100000',
-    description: 'Transfer from Rodion — example',
+    description: 'Transfer from Alex — example',
   },
   {
     source: 'synthetic',

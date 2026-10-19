@@ -150,7 +150,7 @@ test('frontend shell and JSON APIs preserve authentication, owner scope, CSRF an
         mode: 'postgres',
         signedIn: true,
         // The household's own names outside demo mode; the demo renames them.
-        ownerNames: { rodion: 'Rodion', katya: 'Katya' },
+        ownerNames: { rodion: 'Alex', katya: 'Sam' },
         release: 'frontend-test',
         features: {
           ai: false,

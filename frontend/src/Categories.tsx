@@ -707,7 +707,7 @@ export default function Categories() {
                     {ruleDraft.matcherField === 'counterparty'
                       ? 'Use the exact counterparty identifier supplied with the transaction. A display name is not sufficient.'
                       : ruleDraft.matcherField === 'description_contains'
-                        ? 'Type only the part that stays the same, such as “Sent money to Rodion Salnik”. Capitalization does not matter, and there are no wildcards to add. A rule matching the whole description always wins over this one.'
+                        ? 'Type only the part that stays the same, such as “Sent money to Alex Smith”. Capitalization does not matter, and there are no wildcards to add. A rule matching the whole description always wins over this one.'
                         : 'Copy the description exactly, including spaces and capitalization. Similar names alone won’t match.'}
                   </p>
                 </div>

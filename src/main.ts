@@ -19,6 +19,7 @@ import {
 } from './categories.js';
 import { ConsentService } from './consent.js';
 import { forgetExpiredSessions, seedOwners } from './auth.js';
+import { memberSetting } from './member-settings.js';
 
 /**
  * When the newest local database snapshot was taken.
@@ -101,13 +102,13 @@ if (mode === 'postgres') {
   await seedOwners(db, [
     {
       owner: 'rodion',
-      email: process.env.RODION_EMAIL ?? '',
-      password: process.env.RODION_PASSWORD ?? '',
+      email: memberSetting('rodion', 'EMAIL') ?? '',
+      password: memberSetting('rodion', 'PASSWORD') ?? '',
     },
     {
       owner: 'katya',
-      email: process.env.KATYA_EMAIL ?? '',
-      password: process.env.KATYA_PASSWORD ?? '',
+      email: memberSetting('katya', 'EMAIL') ?? '',
+      password: memberSetting('katya', 'PASSWORD') ?? '',
     },
   ]);
   await forgetExpiredSessions(db);
@@ -144,19 +145,23 @@ const classifierKey =
   mode === 'postgres' && process.env.OPENAI_API_KEY_FILE
     ? (await readFile(process.env.OPENAI_API_KEY_FILE, 'utf8')).trim()
     : undefined;
+const telegramUserIds = {
+  rodion: memberSetting('rodion', 'TELEGRAM_USER_ID'),
+  katya: memberSetting('katya', 'TELEGRAM_USER_ID'),
+};
 const telegram =
   mode === 'postgres' &&
   process.env.TELEGRAM_BOT_TOKEN_FILE &&
   process.env.TELEGRAM_CHAT_ID &&
-  process.env.TELEGRAM_RODION_USER_ID &&
-  process.env.TELEGRAM_KATYA_USER_ID
+  telegramUserIds.rodion &&
+  telegramUserIds.katya
     ? new TelegramClarifications(
         db,
         {
           chatId: process.env.TELEGRAM_CHAT_ID,
           userIds: {
-            rodion: process.env.TELEGRAM_RODION_USER_ID,
-            katya: process.env.TELEGRAM_KATYA_USER_ID,
+            rodion: telegramUserIds.rodion,
+            katya: telegramUserIds.katya,
           },
         },
         telegramTransport(
