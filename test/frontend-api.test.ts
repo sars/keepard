@@ -24,6 +24,7 @@ test('frontend shell and JSON APIs preserve authentication, owner scope, CSRF an
     'export const ready = true;',
   );
   await writeFile(join(frontend, 'assets/app.css'), 'body { color: black; }');
+  await writeFile(join(frontend, 'favicon.svg'), '<svg></svg>');
   await writeFile(
     join(frontend, 'manifest.webmanifest'),
     '{"name":"Keepard","start_url":"/"}',
@@ -208,6 +209,8 @@ test('frontend shell and JSON APIs preserve authentication, owner scope, CSRF an
     );
     // The manifest is part of the shell, so it answers before a session too.
     assert.equal((await fetch(base + '/manifest.webmanifest')).status, 200);
+    // So is the tab's icon: the sign-in page shows it before anybody is in.
+    assert.equal((await fetch(base + '/favicon.svg')).status, 200);
     // The shell answers screen routes, never a literal /index.html; the worker
     // must not precache a path the server does not serve.
     assert.equal((await get('/index.html')).status, 404);
