@@ -616,6 +616,14 @@ export function web(
         json(403, { error: 'admin_required', requestId });
         return;
       }
+      // A public demo shares one published sign-in among its visitors, and
+      // that account is member 2. Refilling stays with member 1, the
+      // operator's private account; a laptop demo signs itself in as member 1
+      // and keeps its refill page. The status route answered above.
+      if (route.startsWith('/showcase/reseed') && actor !== 'rodion') {
+        json(403, { error: 'admin_required', requestId });
+        return;
+      }
       if (req.method === 'GET' && route === '/api/settings') {
         json(200, { settings: await readAppSettings(repo.db) });
         return;
@@ -1125,7 +1133,7 @@ export function web(
         const reports = await new Reports(repo.db).list(scope as Owner | 'all');
         html(`<h1>Weekly and monthly reports</h1><p>Calendar periods use Europe/Riga. Confirmed expenses, unresolved payments and pending payments remain separate. Missing historical FX is never replaced by a current rate.</p>
         <form method="post" action="/reports"><input type="hidden" name="csrf" value="${csrf}"><label>Period<select name="period"><option value="week">Previous week</option><option value="month">Previous month</option></select></label><label>Owner<select name="owner">${['all', 'rodion', 'katya'].map((o) => `<option value="${o}" ${o === scope ? 'selected' : ''}>${o === 'all' ? 'Together' : o}</option>`).join('')}</select></label><button>Create or refresh report</button></form>
-        <p><a href="/reports?owner=all">Together</a> · <a href="/reports?owner=rodion">Rodion</a> · <a href="/reports?owner=katya">Katya</a></p>
+        <p><a href="/reports?owner=all">Together</a> · <a href="/reports?owner=rodion">${escape(ownerNames().rodion)}</a> · <a href="/reports?owner=katya">${escape(ownerNames().katya)}</a></p>
         ${reports.map((s) => `<section class="total"><h2>${escape(s.report.period.kind)} · ${escape(s.report.owner)} · version ${s.version}</h2><p>${escape(s.report.period.from)} through ${escape(s.report.period.to)} (end exclusive)</p>${s.report.byCurrency.map((t) => `<p>${money(t.personalExpenseMinor, t.currency)} confirmed · ${money(t.unresolvedOutflowMinor, t.currency)} unresolved · ${money(t.pendingOutflowMinor, t.currency)} pending</p>`).join('')}<p class="warning">${s.report.incompleteness.unresolvedCount} unresolved, ${s.report.incompleteness.pendingCount} pending. Import coverage is not yet certified.</p><h3>Categories</h3>${s.report.byCategory.map((c) => `<p>${escape(c.owner)} · ${escape(c.category)}: ${money(c.personalExpenseMinor, c.currency)}</p>`).join('') || '<p>No classified expenses in this period.</p>'}</section>`).join('') || '<p>No reports created for this scope yet.</p>'}`);
         return;
       }
@@ -1995,7 +2003,7 @@ export function web(
         )
         .join('');
       html(
-        `<h1>Family spending</h1><p>Only confirmed personal outflows count. Use Currency conversion for totals in one display currency with daily commercial estimates. Totals below use the same filters as the transaction list.</p><div class="toolbar"><form method="get"><label>Account owner<select name="owner"><option value="">Together</option><option value="rodion" ${owner === 'rodion' ? 'selected' : ''}>Rodion</option><option value="katya" ${owner === 'katya' ? 'selected' : ''}>Katya</option></select></label><label>From (Europe/Riga)<input type="date" name="from" value="${escape(filters.from ?? '')}"></label><label>Through (Europe/Riga)<input type="date" name="to" value="${escape(filters.to ?? '')}"></label><label>Currency<input name="currency" placeholder="All currencies" maxlength="3" value="${escape(filters.currency ?? '')}"></label><label>Category<input name="category" placeholder="All categories" maxlength="80" value="${escape(filters.category ?? '')}"></label><button>Apply filters</button> <a href="/">Clear filters</a></form>${config.mode === 'demo' ? `<form action="/import" method="post"><input type="hidden" name="csrf" value="${csrf}"><button>Import example transactions</button></form>` : ''}</div><div class="totals">${cards}</div>${rows.length ? `<div class="scroll"><table><caption>${rows.length} transactions</caption><thead><tr><th scope="col">Date / owner</th><th scope="col">Transaction</th><th scope="col">Amount</th><th scope="col">Classification</th></tr></thead><tbody>${table}</tbody></table></div>` : `<h2>No transactions yet</h2><p>${config.mode === 'demo' ? 'Import the examples to try classification. Importing them again will not create duplicates.' : 'Bank imports will appear here after the server connection is configured.'}</p>`}`,
+        `<h1>Family spending</h1><p>Only confirmed personal outflows count. Use Currency conversion for totals in one display currency with daily commercial estimates. Totals below use the same filters as the transaction list.</p><div class="toolbar"><form method="get"><label>Account owner<select name="owner"><option value="">Together</option><option value="rodion" ${owner === 'rodion' ? 'selected' : ''}>${escape(ownerNames().rodion)}</option><option value="katya" ${owner === 'katya' ? 'selected' : ''}>${escape(ownerNames().katya)}</option></select></label><label>From (Europe/Riga)<input type="date" name="from" value="${escape(filters.from ?? '')}"></label><label>Through (Europe/Riga)<input type="date" name="to" value="${escape(filters.to ?? '')}"></label><label>Currency<input name="currency" placeholder="All currencies" maxlength="3" value="${escape(filters.currency ?? '')}"></label><label>Category<input name="category" placeholder="All categories" maxlength="80" value="${escape(filters.category ?? '')}"></label><button>Apply filters</button> <a href="/">Clear filters</a></form>${config.mode === 'demo' ? `<form action="/import" method="post"><input type="hidden" name="csrf" value="${csrf}"><button>Import example transactions</button></form>` : ''}</div><div class="totals">${cards}</div>${rows.length ? `<div class="scroll"><table><caption>${rows.length} transactions</caption><thead><tr><th scope="col">Date / owner</th><th scope="col">Transaction</th><th scope="col">Amount</th><th scope="col">Classification</th></tr></thead><tbody>${table}</tbody></table></div>` : `<h2>No transactions yet</h2><p>${config.mode === 'demo' ? 'Import the examples to try classification. Importing them again will not create duplicates.' : 'Bank imports will appear here after the server connection is configured.'}</p>`}`,
       );
     } catch (error) {
       const status =

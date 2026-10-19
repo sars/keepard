@@ -148,7 +148,7 @@ test('a question offers the candidate purchases and the chosen one is reduced', 
     assert.equal(await questions.dispatchOne(), 'sent');
     assert.equal(fake.sent.length, 1);
     const prompt = fake.sent[0]!.text;
-    assert.match(prompt, /Rodion/);
+    assert.match(prompt, /Alex/);
     assert.match(prompt, /1 — 2026-09-01 · 10.01 EUR · BOLT RIGA/);
     assert.match(prompt, /2 — 2026-09-01 · 9.99 EUR · BOLT RIGA/);
     assert.match(prompt, /“none”/);

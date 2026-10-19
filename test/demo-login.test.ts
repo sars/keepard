@@ -106,3 +106,91 @@ test('a demo with demoLogin needs the seeded account; without it, it signs itsel
     await db.close();
   }
 });
+
+// A public demo publishes one password for its visitors. That account is
+// member 2: it can look around, but refilling the workspace for everybody
+// stays with member 1, the operator's private account.
+test('a demo visitor signs in with the published account but cannot refill', async () => {
+  const db = memoryDatabase();
+  await migrate(db);
+  await seedOwners(db, [
+    {
+      owner: 'rodion',
+      email: 'operator@example.test',
+      password: 'synthetic-operator-password-1',
+    },
+    {
+      owner: 'katya',
+      email: 'visitor@example.test',
+      password: 'synthetic-visitor-password-1',
+    },
+  ]);
+  const repo = new Repository(db);
+  const config: WebConfig = {
+    port: 0,
+    mode: 'demo',
+    release: 'test',
+    demoLogin: true,
+  };
+  const server = web(repo, config, () => {});
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  config.port = (server.address() as AddressInfo).port;
+  const base = `http://127.0.0.1:${config.port}`;
+  const cookieFor = async (email: string, password: string) => {
+    const response = await fetch(base + '/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ email, password }).toString(),
+    });
+    assert.equal(response.status, 200);
+    return response.headers.get('set-cookie')!.split(';')[0]!;
+  };
+  try {
+    const visitor = await cookieFor(
+      'visitor@example.test',
+      'synthetic-visitor-password-1',
+    );
+    const visitorBootstrap = (await (
+      await fetch(base + '/api/bootstrap', { headers: { cookie: visitor } })
+    ).json()) as { actor: string; isAdmin: boolean };
+    assert.deepEqual(
+      { actor: visitorBootstrap.actor, isAdmin: visitorBootstrap.isAdmin },
+      { actor: 'katya', isAdmin: false },
+    );
+    for (const path of ['/showcase/reseed', '/showcase/reseed.js'])
+      assert.equal(
+        (await fetch(base + path, { headers: { cookie: visitor } })).status,
+        403,
+        path,
+      );
+    assert.equal(
+      (
+        await fetch(base + '/showcase/reseed', {
+          method: 'POST',
+          headers: {
+            cookie: visitor,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({ months: '16' }).toString(),
+        })
+      ).status,
+      403,
+    );
+
+    const operator = await cookieFor(
+      'operator@example.test',
+      'synthetic-operator-password-1',
+    );
+    assert.equal(
+      (
+        await fetch(base + '/showcase/reseed', {
+          headers: { cookie: operator },
+        })
+      ).status,
+      200,
+    );
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await db.close();
+  }
+});

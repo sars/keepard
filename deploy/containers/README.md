@@ -14,6 +14,7 @@ unit here because Compose keeps them running (`restart: unless-stopped`).
 | `private-finances-fx-sync.service` | `node dist/src/fx-sync-cli.js` |
 | `private-finances-reports.service` | `node dist/src/report-cli.js` |
 | `private-finances-assets-snapshot.service` | `node dist/src/holdings-snapshot-cli.js --when=last-thursday` |
+| `private-finances-showcase-nightly.service`, started by `../private-finances-showcase-nightly.timer` | `scripts/request-showcase-reseed.mjs` in the `showcase-reseed` service: leaves a refill request every night, which the reseed `.path` unit below picks up |
 | `private-finances-showcase-reseed.path` and `.service` | `scripts/reseed-showcase.mjs` in the `showcase-reseed` service, with the showcase stopped around it, when the reseed page leaves a request file under `PF_STATE_DIR/showcase` |
 
 `PF_COMPOSE_DIR` is where `compose.yaml` and its `.env` live on the host,

@@ -7,6 +7,7 @@ import {
   queryClient,
 } from './lib/query';
 import { Button } from './components/ui/button';
+import { ownerName } from './lib/account-visuals';
 import { Label } from './components/ui/label';
 import { Card, CardContent } from './components/ui/card';
 type Settings = {
@@ -40,8 +41,8 @@ export default function Settings() {
       <div className="space-y-3">
         <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
         <p>
-          Household settings are managed by Rodion. You can manage your own bank
-          approval from Bank connections.
+          Household settings are managed by {ownerName('rodion')}. You can
+          manage your own bank approval from Bank connections.
         </p>
         <a className="underline" href="/connections">
           Bank connections

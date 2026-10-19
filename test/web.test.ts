@@ -115,7 +115,7 @@ test('HTTP flow: CSRF, duplicate import, classification, escaping, exact summary
     // One confirmed decision may become a rule for later payments the bank
     // describes the same way, without the owner retyping the match text.
     const transfer = (await repo.list('rodion')).find(
-      (t) => t.description === 'Transfer to Katya — example',
+      (t) => t.description === 'Transfer to Sam — example',
     )!;
     assert.equal(
       (

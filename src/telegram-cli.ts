@@ -41,6 +41,7 @@ import {
   telegramTransport,
   type TelegramConfig,
 } from './telegram.js';
+import { memberSetting } from './member-settings.js';
 
 export type TelegramPoller = (offset: number) => Promise<unknown[]>;
 export async function initializeTelegramCursor(tx: Executor): Promise<void> {
@@ -201,8 +202,8 @@ async function main(): Promise<void> {
   const settings: TelegramConfig = {
     chatId: process.env.TELEGRAM_CHAT_ID ?? '',
     userIds: {
-      rodion: process.env.TELEGRAM_RODION_USER_ID ?? '',
-      katya: process.env.TELEGRAM_KATYA_USER_ID ?? '',
+      rodion: memberSetting('rodion', 'TELEGRAM_USER_ID') ?? '',
+      katya: memberSetting('katya', 'TELEGRAM_USER_ID') ?? '',
     },
     // The same origin the dashboard is served on, so a message about a payment
     // can link straight to it. Left out when it is not configured.

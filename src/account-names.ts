@@ -12,18 +12,25 @@
 export type AccountOwner = 'rodion' | 'katya';
 
 /**
- * What each member is called on screen.
+ * What each member is called on screen and in Telegram.
  *
- * The demo workspace renames them, so screenshots and screencasts made for a
- * public article carry invented people instead of the household's own names.
- * Only the label changes: the owner recorded against every payment is still
- * `rodion` or `katya`, because that identity is what the ledger, the audit
- * history and the bank connections are keyed by.
+ * An installation names its own people with MEMBER_1_NAME and MEMBER_2_NAME;
+ * without them it shows Alex and Sam, so a fresh fork never carries anybody's
+ * real name. The demo workspace always uses Alex and Sam, whatever its
+ * environment says. Only the label changes: the owner recorded against every
+ * payment is still `rodion` (member 1) or `katya` (member 2), because that
+ * identity is what the ledger, the audit history and the bank connections are
+ * keyed by, and nobody sees it.
+ *
+ * The object is shared and renamed in place, so every module that holds it,
+ * the Telegram worker's included, reads the current names.
  */
 const OWNER_NAMES: Record<AccountOwner, string> = {
-  rodion: 'Rodion',
-  katya: 'Katya',
+  rodion: process.env.MEMBER_1_NAME?.trim() || 'Alex',
+  katya: process.env.MEMBER_2_NAME?.trim() || 'Sam',
 };
+/** The live names, for modules that index them directly. */
+export const memberNames: Readonly<Record<AccountOwner, string>> = OWNER_NAMES;
 /** Rename the members for this process; demo mode calls this at startup. */
 export function setOwnerNames(
   names: Partial<Record<AccountOwner, string>>,

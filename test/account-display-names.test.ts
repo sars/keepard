@@ -10,7 +10,7 @@ test('an account is named by member, bank, product and currency, without repeati
       label: 'iron',
       currency: 'UAH',
     }),
-    'Rodion · Monobank · Iron UAH',
+    'Alex · Monobank · Iron UAH',
   );
   assert.equal(
     accountDisplayName({
@@ -19,7 +19,7 @@ test('an account is named by member, bank, product and currency, without repeati
       label: 'black',
       currency: 'USD',
     }),
-    'Rodion · Monobank · Black USD',
+    'Alex · Monobank · Black USD',
   );
   assert.equal(
     accountDisplayName({
@@ -28,7 +28,7 @@ test('an account is named by member, bank, product and currency, without repeati
       label: 'fop',
       currency: 'USD',
     }),
-    'Rodion · Monobank · FOP USD',
+    'Alex · Monobank · FOP USD',
   );
   assert.equal(
     accountDisplayName({
@@ -37,7 +37,7 @@ test('an account is named by member, bank, product and currency, without repeati
       label: 'madeInUkraine',
       currency: 'UAH',
     }),
-    'Katya · Monobank · Made in Ukraine UAH',
+    'Sam · Monobank · Made in Ukraine UAH',
   );
   // The owner's label already names the bank and the currency.
   assert.equal(
@@ -47,7 +47,7 @@ test('an account is named by member, bank, product and currency, without repeati
       label: 'Wise EUR',
       currency: 'EUR',
     }),
-    'Katya · Wise · EUR',
+    'Sam · Wise · EUR',
   );
   assert.equal(
     accountDisplayName({
@@ -55,7 +55,7 @@ test('an account is named by member, bank, product and currency, without repeati
       source: 'enablebanking',
       label: 'Revolut USD',
     }),
-    'Rodion · Revolut · USD',
+    'Alex · Revolut · USD',
   );
   // A bank with one account and no stated currency yet.
   assert.equal(
@@ -64,7 +64,7 @@ test('an account is named by member, bank, product and currency, without repeati
       source: 'enablebanking',
       label: 'LHV',
     }),
-    'Rodion · LHV',
+    'Alex · LHV',
   );
   assert.equal(
     accountDisplayName({
@@ -73,7 +73,7 @@ test('an account is named by member, bank, product and currency, without repeati
       label: 'Swedbank',
       currency: 'EUR',
     }),
-    'Rodion · Swedbank · EUR',
+    'Alex · Swedbank · EUR',
   );
   assert.equal(
     accountDisplayName({
@@ -82,7 +82,7 @@ test('an account is named by member, bank, product and currency, without repeati
       label: 'Cash EUR',
       currency: 'EUR',
     }),
-    'Katya · Cash · EUR',
+    'Sam · Cash · EUR',
   );
   // A label nobody recognises is kept as the owner wrote it.
   assert.deepEqual(
@@ -92,10 +92,10 @@ test('an account is named by member, bank, product and currency, without repeati
       label: 'Holiday pot',
       currency: 'GBP',
     }),
-    { owner: 'Rodion', bank: null, product: 'Holiday pot GBP' },
+    { owner: 'Alex', bank: null, product: 'Holiday pot GBP' },
   );
   assert.equal(
     accountDisplayName({ owner: 'rodion', source: 'other', label: '' }),
-    'Rodion',
+    'Alex',
   );
 });

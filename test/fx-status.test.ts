@@ -134,7 +134,7 @@ test('a day nothing published leaves its payments visible, listed and uncounted'
     assert.deepEqual(row!.missingFor, ['EUR', 'USD']);
     assert.equal(row!.bookedAt.slice(0, 10), '2025-10-26');
     // The account by the name the owner recognises, not the integration's.
-    assert.match(row!.account.name, /^Rodion · Monobank/);
+    assert.match(row!.account.name, /^Alex · Monobank/);
     assert.equal(status.unconvertedCapped, false);
     assert.deepEqual(
       status.rates.days.map((day) => day.state),

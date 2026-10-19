@@ -228,7 +228,15 @@ root there.
    no check, which is for CI and laptops only. And `showcase.env` beside the
    household's configuration, root-owned, mode 0640 for the stack's group,
    with `DEMO_LOGIN_EMAIL` and a `DEMO_LOGIN_PASSWORD` of at least twenty
-   characters; the password stays with the operator.
+   characters; the password stays with the operator. That account is member 1
+   (Alex): the only one that may refill the demo or change its settings.
+
+   For a demo open to the public, add `DEMO_VISITOR_EMAIL` and
+   `DEMO_VISITOR_PASSWORD` (also at least twenty characters). That account is
+   member 2 (Sam) and its password is meant to be published, on the landing
+   page for example. Visitors can look around and classify payments; the
+   refill page answers them with 403 and the sidebar does not offer it.
+   Whatever they change is undone by the nightly refill below.
 
 3. **Start it.** A release does, or `docker compose up -d showcase`. It comes
    up with an empty workspace and is healthy within a minute:
@@ -272,6 +280,27 @@ root there.
 7. **Check it.** Open the name, sign in, install it on the phone,
    and confirm the header says **Demo mode** and the people are Alex and Sam.
    If it says anything else, stop and do not photograph it.
+
+## Refilling it every night
+
+A public demo is written to by its visitors, so it is put back every night.
+`private-finances-showcase-nightly.timer` (in `deploy/`) starts
+`private-finances-showcase-nightly.service` (in `deploy/containers/`) at about
+03:30 Kyiv time. That runs `scripts/request-showcase-reseed.mjs` in the
+`showcase-reseed` service, which leaves a request file in the shape the demo
+was last built in (or the defaults). The watcher described below picks it up,
+so a nightly refill is the same refill the page asks for, with the same status
+file. A refill already under way is left alone.
+
+Installing it is a deliberate act, like any new unit:
+
+```sh
+install -m 644 deploy/private-finances-showcase-nightly.timer /etc/systemd/system/
+install -m 644 deploy/containers/private-finances-showcase-nightly.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now private-finances-showcase-nightly.timer
+systemctl list-timers private-finances-showcase-nightly.timer
+```
 
 ## Refilling it from the page
 

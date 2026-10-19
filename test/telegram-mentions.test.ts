@@ -12,6 +12,12 @@ import {
   telegramTransport,
   type TelegramMention,
 } from '../src/telegram.js';
+import { setOwnerNames } from '../src/account-names.js';
+
+// These cases are about a household whose members are called Rodion and
+// Katya: the bank's own text names the same person the bot addresses. Naming
+// them here also proves a rename reaches the names the bot writes.
+setOwnerNames({ rodion: 'Rodion', katya: 'Katya' });
 
 const settings = { chatId: '-123', userIds: { rodion: '101', katya: '102' } };
 const token = '123456:synthetic_fake_token_123456789';
