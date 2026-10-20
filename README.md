@@ -4,7 +4,11 @@ Family finances on your own server. Keepard gathers the accounts two people
 hold in different banks and countries, works out what was really spent, and
 asks in Telegram when it is not sure. Nobody else sees the data.
 
-Keepard is a working name. The code still says Private Finances in many places.
+**[keepard.com](https://keepard.com)** · **[Live demo](https://demo.keepard.com)**
+(sign in as `guest@keepard.com` / `keepard-demo-for-everyone`; it is an
+invented household, rebuilt every night)
+
+The code still says Private Finances in many places; the product is Keepard.
 
 <p align="center"><img src="site/img/home.png" width="640" alt="Keepard on a phone, in demo mode"></p>
 
@@ -52,8 +56,12 @@ The full list is in [AGENTS.md](AGENTS.md).
 
 ## Try the demo
 
-The demo needs no bank and no keys. It opens a workspace with sixteen months of
-an invented household. You need Node.js 24 and pnpm.
+Online: [demo.keepard.com](https://demo.keepard.com), signed in as
+`guest@keepard.com` with the password `keepard-demo-for-everyone`. Change what
+you like; the workspace is rebuilt every night.
+
+On your own machine the demo needs no bank and no keys. It opens a workspace
+with sixteen months of an invented household. You need Node.js 24 and pnpm.
 
 ```sh
 pnpm install --frozen-lockfile
