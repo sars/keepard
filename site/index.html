@@ -320,7 +320,7 @@
         <button type="button" data-set="uk" aria-label="Українська">УК</button>
         <button type="button" data-set="en" aria-label="English">EN</button>
       </div>
-      <a class="btn btn-ghost btn-sm btn-star" data-repo href="https://github.com/sars/private-finances">
+      <a class="btn btn-ghost btn-sm btn-star" data-repo href="https://github.com/sars/keepard">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36 .96 .1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05 .74 .81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67 .41 .36.78 1.06.78 2.14v3.17c0 .31 .21 .67 .8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
         <span class="label">Star</span><span class="count" data-stars></span>
       </a>
@@ -348,11 +348,11 @@
         <span lang="uk">Keepard збирає рахунки, які ви з партнером маєте в різних банках і країнах, рахує, скільки насправді витрачено, і питає в Telegram, коли не впевнений. Працює на вашому власному сервері, і більше ніхто ваших даних не бачить.</span>
       </p>
       <div class="ctas">
-        <a class="btn btn-primary" data-repo-fork href="https://github.com/sars/private-finances/fork">
+        <a class="btn btn-primary" data-repo-fork href="https://github.com/sars/keepard/fork">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2.5"/><circle cx="18" cy="5" r="2.5"/><circle cx="12" cy="19" r="2.5"/><path d="M6 7.5v1A3.5 3.5 0 0 0 9.5 12h5A3.5 3.5 0 0 0 18 8.5v-1M12 12v4.5"/></svg>
           <span lang="en">Fork and run your own</span><span lang="uk">Форкнути й запустити</span>
         </a>
-        <a class="btn btn-ghost" data-repo href="https://github.com/sars/private-finances">
+        <a class="btn btn-ghost" data-repo href="https://github.com/sars/keepard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.1 6.4 20l1.1-6.2L3 9.4l6.2-.9L12 2.8Z"/></svg>
           <span lang="en">Star on GitHub</span><span lang="uk">Зірка на GitHub</span>
           <span class="count" data-stars></span>
@@ -687,9 +687,9 @@
         <div class="num"><span lang="en">Step 1</span><span lang="uk">Крок 1</span></div>
         <h3><span lang="en">Fork and clone</span><span lang="uk">Форкніть і клонуйте</span></h3>
         <p><span lang="en">Your own copy, yours to change.</span><span lang="uk">Ваша власна копія, змінюйте як хочете.</span></p>
-<pre>git clone https://github.com/<span lang="en">YOU</span><span lang="uk">ВИ</span>/private-finances
-cd private-finances</pre>
-        <a class="more" data-repo-fork href="https://github.com/sars/private-finances/fork"><span lang="en">Fork on GitHub →</span><span lang="uk">Форкнути на GitHub →</span></a>
+<pre>git clone https://github.com/<span lang="en">YOU</span><span lang="uk">ВИ</span>/keepard
+cd keepard</pre>
+        <a class="more" data-repo-fork href="https://github.com/sars/keepard/fork"><span lang="en">Fork on GitHub →</span><span lang="uk">Форкнути на GitHub →</span></a>
       </div>
       <div class="card">
         <div class="num"><span lang="en">Step 2</span><span lang="uk">Крок 2</span></div>
@@ -698,13 +698,13 @@ cd private-finances</pre>
 <pre>pnpm install --frozen-lockfile
 pnpm demo:seed
 pnpm demo</pre>
-        <a class="more" data-repo-path="docs/showcase.md" href="https://github.com/sars/private-finances/blob/main/docs/showcase.md"><span lang="en">About the demo →</span><span lang="uk">Про демо →</span></a>
+        <a class="more" data-repo-path="docs/showcase.md" href="https://github.com/sars/keepard/blob/main/docs/showcase.md"><span lang="en">About the demo →</span><span lang="uk">Про демо →</span></a>
       </div>
       <div class="card">
         <div class="num"><span lang="en">Step 3</span><span lang="uk">Крок 3</span></div>
         <h3><span lang="en">Put it on a server</span><span lang="uk">Поставте на сервер</span></h3>
         <p><span lang="en">A Docker Compose stack with its own database and backups. Then connect your banks and a Telegram bot.</span><span lang="uk">Стек Docker Compose із власною базою і бекапами. Далі підключіть банки й Telegram-бота.</span></p>
-        <a class="more" data-repo-path="docs/containers.md" href="https://github.com/sars/private-finances/blob/main/docs/containers.md"><span lang="en">Setup guide →</span><span lang="uk">Інструкція →</span></a>
+        <a class="more" data-repo-path="docs/first-install.md" href="https://github.com/sars/keepard/blob/main/docs/first-install.md"><span lang="en">Setup guide →</span><span lang="uk">Інструкція →</span></a>
       </div>
     </div>
   </div>
@@ -786,11 +786,11 @@ pnpm demo</pre>
       <span lang="uk">Форкніть, запустіть, переробіть під себе. А якщо стане в пригоді, зірка допоможе знайти його наступній родині.</span>
     </p>
     <div class="ctas">
-      <a class="btn btn-primary" data-repo-fork href="https://github.com/sars/private-finances/fork">
+      <a class="btn btn-primary" data-repo-fork href="https://github.com/sars/keepard/fork">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2.5"/><circle cx="18" cy="5" r="2.5"/><circle cx="12" cy="19" r="2.5"/><path d="M6 7.5v1A3.5 3.5 0 0 0 9.5 12h5A3.5 3.5 0 0 0 18 8.5v-1M12 12v4.5"/></svg>
         <span lang="en">Fork on GitHub</span><span lang="uk">Форкнути на GitHub</span>
       </a>
-      <a class="btn btn-ghost" data-repo href="https://github.com/sars/private-finances">
+      <a class="btn btn-ghost" data-repo href="https://github.com/sars/keepard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.1 6.4 20l1.1-6.2L3 9.4l6.2-.9L12 2.8Z"/></svg>
         <span lang="en">Star on GitHub</span><span lang="uk">Зірка на GitHub</span>
         <span class="count" data-stars></span>
@@ -804,13 +804,13 @@ pnpm demo</pre>
 <footer>
   <div class="wrap">
     <span><span lang="en">Made by</span><span lang="uk">Зробив</span> <a href="https://github.com/sars">Rodion Salnik</a> · <a href="https://brocoders.com">Brocoders</a></span>
-    <span><a data-repo href="https://github.com/sars/private-finances">GitHub</a> · <a href="mailto:rodion@brocoders.com"><span lang="en">Contact</span><span lang="uk">Контакт</span></a> · <a data-repo-path="LICENSE" href="https://github.com/sars/private-finances/blob/main/LICENSE">AGPL-3.0</a></span>
+    <span><a data-repo href="https://github.com/sars/keepard">GitHub</a> · <a href="mailto:rodion@brocoders.com"><span lang="en">Contact</span><span lang="uk">Контакт</span></a> · <a data-repo-path="LICENSE" href="https://github.com/sars/keepard/blob/main/LICENSE">AGPL-3.0</a></span>
   </div>
 </footer>
 
 <script>
   // The repository lives in one place so a rename is a one-line change.
-  var REPO = "sars/private-finances";
+  var REPO = "sars/keepard";
   var base = "https://github.com/" + REPO;
   document.querySelectorAll("[data-repo]").forEach(function (a) { a.href = base; });
   document.querySelectorAll("[data-repo-fork]").forEach(function (a) { a.href = base + "/fork"; });
