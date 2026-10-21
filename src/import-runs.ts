@@ -66,6 +66,12 @@ export type AttemptStep = {
   code?: string;
   /** What the bank asked us to wait, when it said so, in milliseconds. */
   retryAfterMs?: number;
+  /**
+   * The bank's own code for a refusal — `EXPIRED_SESSION`, `ASPSP_ERROR` —
+   * reduced by `sanitizeReason` to at most forty characters of `[A-Z0-9_]`.
+   * Never the bank's message.
+   */
+  reason?: string;
   /** A short machine-readable note. Never free text from a bank or a person. */
   note?: string;
 };

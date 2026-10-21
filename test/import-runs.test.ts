@@ -16,7 +16,7 @@ import {
 import { importStatus } from '../src/import-status.js';
 import { systemProblems } from '../src/problems.js';
 import { runScheduledSync } from '../src/schedule.js';
-import { requester } from '../src/connectors/http.js';
+import { requester, sanitizeReason } from '../src/connectors/http.js';
 import {
   ConnectorError,
   type BankConnector,
@@ -342,6 +342,115 @@ test('a request that never got an answer is reported with no status', async () =
   assert.equal(seen.length, 1);
   assert.equal(seen[0]!.status, undefined);
   assert.equal(seen[0]!.code, 'transient');
+});
+
+test('a refusal with a code in its body reaches the observer as the reason', async () => {
+  // A 401 alone cannot tell an expired session from a revoked one; the code
+  // Enable Banking puts beside it can, and is the one thing in the body kept.
+  const seen: { status?: number; code?: string; reason?: string }[] = [];
+  const ask = requester(
+    'https://api.enablebanking.com',
+    0,
+    async () =>
+      new Response(
+        JSON.stringify({
+          error: 'expired_session',
+          message: 'Session is expired',
+        }),
+        { status: 401, headers: { 'content-type': 'application/json' } },
+      ),
+    (event) => seen.push(event),
+  );
+  await assert.rejects(ask('/accounts/xyz/details', {}), { code: 'auth' });
+  assert.deepEqual(
+    seen.map(({ status, code, reason }) => ({ status, code, reason })),
+    [{ status: 401, code: 'auth', reason: 'EXPIRED_SESSION' }],
+  );
+  assert.ok(!JSON.stringify(seen).includes('Session is expired'));
+});
+
+test('a reason that is not a bare code is dropped whole, never stripped', async () => {
+  const seen: { reason?: string }[] = [];
+  const ask = requester(
+    'https://api.enablebanking.com',
+    0,
+    async () =>
+      new Response(
+        JSON.stringify({ error: 'account 123-456 is blocked', detail: 'x' }),
+        { status: 400 },
+      ),
+    (event) => seen.push(event),
+  );
+  await assert.rejects(ask('/accounts/xyz/details', {}), { code: 'schema' });
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0]!.reason, undefined);
+  assert.ok(!('reason' in seen[0]!));
+});
+
+test('a refusal whose body is not JSON is reported without a reason', async () => {
+  const seen: { status?: number; code?: string; reason?: string }[] = [];
+  const ask = requester(
+    'https://api.enablebanking.com',
+    0,
+    async () =>
+      new Response('<html>Bad Gateway: private bank details</html>', {
+        status: 502,
+      }),
+    (event) => seen.push(event),
+  );
+  await assert.rejects(ask('/sessions/abc', {}), { code: 'transient' });
+  assert.deepEqual(
+    seen.map(({ status, code, reason }) => ({ status, code, reason })),
+    [{ status: 502, code: 'transient', reason: undefined }],
+  );
+});
+
+test('a refusal with an empty body is reported without a reason', async () => {
+  const seen: { status?: number; code?: string; reason?: string }[] = [];
+  const ask = requester(
+    'https://api.enablebanking.com',
+    0,
+    async () => new Response(null, { status: 403 }),
+    (event) => seen.push(event),
+  );
+  await assert.rejects(ask('/sessions/abc', {}), { code: 'auth' });
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0]!.status, 403);
+  assert.ok(!('reason' in seen[0]!));
+});
+
+test('a refusal body past the bound gives no reason and is still refused', async () => {
+  const seen: { status?: number; reason?: string }[] = [];
+  const padding = 'x'.repeat(5000);
+  const ask = requester(
+    'https://api.enablebanking.com',
+    0,
+    async () =>
+      new Response(JSON.stringify({ error: 'ASPSP_ERROR', message: padding }), {
+        status: 500,
+      }),
+    (event) => seen.push(event),
+  );
+  await assert.rejects(ask('/sessions/abc', {}), { code: 'transient' });
+  assert.equal(seen.length, 1);
+  assert.ok(!('reason' in seen[0]!));
+});
+
+test('a reason is a bare code: upper-cased, bounded, and otherwise dropped', () => {
+  assert.equal(sanitizeReason('EXPIRED_SESSION'), 'EXPIRED_SESSION');
+  assert.equal(sanitizeReason('aspsp_error'), 'ASPSP_ERROR');
+  assert.equal(
+    sanitizeReason('WRONG_REQUEST_PARAMETERS'),
+    'WRONG_REQUEST_PARAMETERS',
+  );
+  assert.equal(sanitizeReason('A'.repeat(60)), 'A'.repeat(40));
+  // Anything that could carry a sentence or an identifier is dropped whole.
+  assert.equal(sanitizeReason('Session is expired'), undefined);
+  assert.equal(sanitizeReason('EE12-3456'), undefined);
+  assert.equal(sanitizeReason(''), undefined);
+  assert.equal(sanitizeReason(401), undefined);
+  assert.equal(sanitizeReason({ code: 'EXPIRED_SESSION' }), undefined);
+  assert.equal(sanitizeReason(undefined), undefined);
 });
 
 test('an observer that throws cannot break an import', async () => {

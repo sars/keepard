@@ -57,8 +57,25 @@ pointed at a database that refuses every write.
 
 A step is a stage, an offset from the start, a duration, and whatever that
 stage knows: the account (by the application's own identifier), a request path,
-an HTTP status, the size in bytes of what came back, a count, an error code, and
-the wait a bank asked for.
+an HTTP status, the size in bytes of what came back, a count, an error code,
+the wait a bank asked for, and — for a refused request — the bank's own code
+for the refusal as `reason`.
+
+`reason` exists because a status alone cannot say why. On 20 and 21 October
+2026 two connections latched for review on the same path, one after a 401 and
+one after a 400, and the trace held nothing to tell an expired session from a
+revoked one or a one-off from a fault; a manual probe later found Enable
+Banking answering `EXPIRED_SESSION` beside the 401. The requester now reads
+the first four kilobytes of a refusal's body before cancelling it and, when
+that parses as JSON with a string `error` field, keeps that value through
+`sanitizeReason`: upper-cased, cut to forty characters, and kept only when
+nothing but `[A-Z0-9_]` remains. A value with a space, a dash or a quote is
+free text and is dropped whole rather than stripped, so the field holds codes
+such as `EXPIRED_SESSION`, `ASPSP_ERROR` or `WRONG_REQUEST_PARAMETERS` and
+never a sentence or an identifier. The `message` and `detail` fields are never
+read; a body that is empty, is not JSON, or is longer than the bound gives no
+reason at all. The body goes nowhere else — not to stderr, not to the error
+the import raises — and the run screen shows the reason beside the error code.
 
 Every request is reported, not only the refused ones. The first version of this
 reported failures alone, which made a healthy run look as though it had asked

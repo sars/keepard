@@ -1413,6 +1413,29 @@ it ships an unsettled purchase still waits for the bank.
 
 # Recent entries
 
+# A refused request now records the bank's own code — October 21, 2026
+
+Two Enable Banking connections latched for review on 20 and 21 October, each
+after a refusal on the account-details path, one with a 401 and one with a 400.
+The attempt trace held the status and nothing else, so the cause could not be
+read from it: a read-only probe later showed that one bank's session had
+expired at the aggregator (`EXPIRED_SESSION` beside the 401), while the other
+refusal was a one-off and the bank answered the same request the next day.
+
+The requester (`src/connectors/http.ts`) now reads at most four kilobytes of a
+refusal's body before cancelling it and, when the body is JSON with a string
+`error` field, reports that value as `reason` on the request step, beside
+`status` and `code`. `sanitizeReason` upper-cases it, cuts it to forty
+characters and keeps it only when nothing but `[A-Z0-9_]` remains, dropping
+anything else whole; `message` and `detail` are never read, and the body is
+never written to stderr or to the error the import raises. `AttemptStep` and
+the recorder's forwarder in `sync-cli.ts` carry the field into
+`bank_sync_attempts.steps`, and the run screen shows it beside the error code.
+Tests in `test/import-runs.test.ts` hold the allowed code, a free-text value
+dropped whole, a non-JSON body, an empty body and a body past the bound.
+Implemented and tested; not yet released. Details in
+[import runs](import-runs.md).
+
 # A renewed approval was not reaching the scheduler — September 22, 2026
 
 The owner said their Revolut token had expired, that they had refreshed it, and
