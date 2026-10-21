@@ -7,25 +7,6 @@ Keep this file bounded: `python3 scripts/archive_status.py --keep 10` moves
 older entries out. Run `scripts/deploy-status.sh` to compare the deployed
 release with `origin/main` rather than reconstructing it by hand.
 
-## In the repository, not yet released
-
-**"Retry import" for a stopped bank, from Bank connections.** Implemented and
-covered by tests on 21 October 2026, not deployed. A bank import that fails for
-a reason the scheduler cannot classify latches its connection, and until now
-only a person deleting the latch over SSH could restart it (Revolut, 20
-October: one HTTP 400, answered normally a day later). The connection's card on
-Bank connections now shows "Import stopped, needs a look" with a "Retry import"
-button for the member it belongs to or the administrator; the press writes a
-`<instance>.retry-requested` marker into the shared consent directory, is
-recorded in `audit_events`, and the scheduler lifts the latch at its next run
-when the marker is newer than the latch, for exactly one attempt. The page says
-the retry is queued for the next check, within thirty minutes. Verified: unit
-tests for the marker's four cases and the 0600 mode, the API's ownership and
-CSRF rules, and the screen at phone and desktop widths against a seeded stopped
-bank. Not verified: a real timer run on the server consuming the marker; the
-first latched bank after the release will show that. See
-[scheduling](scheduling.md), "Failures and disablement".
-
 ## Deployed release
 
 **The application moved to the container host on 17 October 2026 (PF-022).**
@@ -45,7 +26,26 @@ leaving nothing of the project there; details in [containers](containers.md). Ev
 below the next entry about `deploy/release.sh` and the systemd host describes
 the deployment before the move.
 
-**aaf9f2c2c5329a27ad44c334226e427b9282badd**, live since October 21, 2026 at
+**97ed85c85ec1da0bdafe0e0cff65d90c63352a02**, live since October 21, 2026 at
+schema version 68, deployed with `deploy/container-release.sh` from 5d983ce:
+`app`, `db`, `showcase` and the Telegram worker running, 4,494 transactions at
+verification, no migration. It carries PR #189, "Retry import" for a stopped
+bank from Bank connections: a connection the scheduler has latched shows
+"Import stopped, needs a look" with a button for the member it belongs to or
+the administrator; the press writes a `<instance>.retry-requested` marker into
+the shared consent directory, is recorded in `audit_events`, and the scheduler
+lifts the latch at its next run when the marker is newer than the latch, for
+exactly one attempt ([scheduling](scheduling.md), "Failures and disablement").
+The release was started as a Monobank import ended, so the pause found no
+worker running and the switch went through at the first attempt. Verified
+after the switch: the public name answers `/health/ready` with the new
+release, all seven import timers are back with no failed unit and no latch,
+and the imports that fired in the following half hour succeeded. Not yet
+verified: a real timer run consuming the marker; the first latched bank will
+show that.
+
+**aaf9f2c2c5329a27ad44c334226e427b9282badd**, superseded October 21, 2026,
+live from earlier that day at
 schema version 68, deployed with `deploy/container-release.sh` from 7124d6e:
 `app`, `db`, `showcase` and the Telegram worker running, 4,494 transactions at
 verification, no migration. It carries PRs #186 to #188: the README links,
