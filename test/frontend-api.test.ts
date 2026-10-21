@@ -1,11 +1,19 @@
 import { credentialsHealthFromEnv } from '../src/credential-health.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, mkdir, writeFile, symlink, rm } from 'node:fs/promises';
+import {
+  mkdtemp,
+  mkdir,
+  readdir,
+  writeFile,
+  symlink,
+  rm,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { memoryDatabase, migrate } from '../src/database.js';
+import { ImportRetryRequests } from '../src/import-retry.js';
 import { Repository } from '../src/repository.js';
 import { web, type WebConfig } from '../src/web.js';
 import { synthetic } from '../src/synthetic.js';
@@ -58,11 +66,20 @@ test('frontend shell and JSON APIs preserve authentication, owner scope, CSRF an
       sourceDetails: { sensitive: 'RAW_PAYLOAD_MUST_STAY_PRIVATE' },
     })),
   );
+  // Member 1's Wise import latched by the scheduler, so Bank connections has
+  // a stopped bank to offer "Retry import" for; the marker goes here.
+  await db.query(
+    `INSERT INTO bank_sync_runs(connection,state,retry_reason)
+     VALUES('enablebanking:rodion:wise','failed','blocked')`,
+  );
+  const retryDirectory = join(directory, 'consent');
+  await mkdir(retryDirectory, { mode: 0o700 });
   const config: WebConfig = {
     mode: 'postgres',
     port: 0,
     release: 'frontend-test',
     frontendDirectory: frontend,
+    importRetry: new ImportRetryRequests(db, retryDirectory),
     credentialHealth: () =>
       credentialsHealthFromEnv(
         {
@@ -349,9 +366,29 @@ test('frontend shell and JSON APIs preserve authentication, owner scope, CSRF an
         .status,
       404,
     );
-    assert.equal(
-      (await (await get('/api/connections')).json()).connections[0].bank,
-      'Wise',
+    const connections = await (await get('/api/connections')).json();
+    assert.equal(connections.connections[0].bank, 'Wise');
+    // The stopped import is named with its approval, so the page can offer a
+    // retry; nothing is queued until somebody asks.
+    assert.deepEqual(
+      {
+        connection: connections.connections[0].connection,
+        importStopped: connections.connections[0].importStopped,
+        retryQueued: connections.connections[0].retryQueued,
+        monobank: connections.monobank,
+        retryAvailable: connections.retryAvailable,
+      },
+      {
+        connection: 'enablebanking:rodion:wise',
+        importStopped: true,
+        retryQueued: false,
+        monobank: {
+          connection: 'monobank:rodion',
+          importStopped: false,
+          retryQueued: false,
+        },
+        retryAvailable: true,
+      },
     );
     // Conversion status takes no display currency: it answers for every
     // reporting currency at once, so a failure cannot hide behind the one
@@ -435,6 +472,55 @@ test('frontend shell and JSON APIs preserve authentication, owner scope, CSRF an
     assert.deepEqual(await redirect.json(), {
       redirect: 'https://auth.enablebanking.com/consent?code=synthetic',
     });
+    // "Retry import": the request needs the form token, must be the member's
+    // own connection (or the administrator's doing), and only a stopped
+    // import takes one. Member 1 is the administrator here, so the other
+    // member's refusal is the one that proves the ownership rule.
+    assert.equal(
+      (
+        await post('/api/connections/retry', {
+          csrf: 'wrong',
+          connection: 'enablebanking:rodion:wise',
+        })
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await post(
+          '/api/connections/retry',
+          {
+            csrf: katyaBootstrap.csrf,
+            connection: 'enablebanking:rodion:wise',
+          },
+          katyaCookie,
+        )
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await post('/api/connections/retry', {
+          csrf: bootstrap.csrf,
+          connection: 'monobank:rodion',
+        })
+      ).status,
+      409,
+    );
+    assert.deepEqual(await readdir(retryDirectory), []);
+    const queued = await post('/api/connections/retry', {
+      csrf: bootstrap.csrf,
+      connection: 'enablebanking:rodion:wise',
+    });
+    assert.equal(queued.status, 200);
+    assert.deepEqual(await queued.json(), { queued: true });
+    assert.deepEqual(await readdir(retryDirectory), [
+      'enablebanking-rodion-wise.retry-requested',
+    ]);
+    assert.equal(
+      (await (await get('/api/connections')).json()).connections[0].retryQueued,
+      true,
+    );
     assert.ok(!JSON.stringify(logs).includes('RAW_PAYLOAD_MUST_STAY_PRIVATE'));
     assert.ok(!JSON.stringify(logs).includes(bootstrap.csrf));
   } finally {

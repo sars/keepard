@@ -132,14 +132,33 @@ connection is itself reported as `transient`, and the scheduler reads the last
 latches anything. See
 [the 23 September incident](incidents/2026-09-23-import-latched-on-database-restart.md).
 
+A third thing lifts a latch: a member asking for it from the Bank connections
+page. "Retry import" appears on a connection while `bank_sync_runs.retry_reason`
+reads `blocked`, for the member it belongs to or the administrator, and writes
+`<instance>.retry-requested` (mode 0600, holding the member's id) into the
+consent directory — `ENABLEBANKING_SESSION_DIRECTORY`, the one directory the
+`app` and `worker` containers share; the scheduler's own state directory stays
+mounted into the worker alone. Each press is an `import_retry_requested` row in
+`audit_events`. On its next run the scheduler consumes the marker whatever it
+finds: newer than the latch, it removes the latch and tries once; older, it was
+answered by the run that wrote the latch and is ignored; with no latch there is
+nothing to lift; a marker that is not a plain private file is not believed.
+A run that fails again writes a fresh latch newer than any marker, so the button
+is one attempt per press and never a loop. The page says the retry is queued
+for the next check, within thirty minutes, not that it ran. This exists because
+of Revolut on 20 October 2026: the bank answered one request with HTTP 400, the
+run read as unknown and latched, the bank was answering normally the next
+morning, and the only remedy was deleting the latch over SSH.
+
 A latched connection shows as stopped on the Bank imports page and in the
 Problems list (Home and System health) as soon as the scheduler announces
 `blocked`; one stopped for three hours or more is sent to Telegram once.
 
 Otherwise: investigate the sanitized failure status and repair/revalidate
-credentials or consent before removing the affected `.blocked` file. After an
-interrupted run, check job/lease state and recovery first. Never clear latches in
-a timer or retry loop. The service deadline is 45 minutes; its child invocation
+credentials or consent, then press "Retry import" on Bank connections; removing
+the affected `.blocked` file by hand is the fallback where the two processes
+share no directory. After an interrupted run, check job/lease state and
+recovery first. Never clear latches in a timer or retry loop. The service deadline is 45 minutes; its child invocation
 deadline is 40 minutes. An unusually large account set may need a separately
 reviewed deadline.
 

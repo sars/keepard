@@ -51,6 +51,10 @@ how long the provider's approval lasts. It records nothing itself. The
 scheduler's latch and cooldown files on the server are deliberately not read by
 the web process; a latch reaches the page through the `blocked` reason the
 scheduler announces into `bank_sync_runs`, and shows as "Stopped, needs a look".
+The one thing the web process writes for the scheduler is the "Retry import"
+request on Bank connections: a `<instance>.retry-requested` marker in the
+consent directory, which the scheduler consumes for exactly one attempt at its
+next run — see "Failures and disablement" in [scheduling](scheduling.md).
 A row still `running` after its lease expired is a run that died: stopped, or
 "Interrupted, will retry" once the scheduler has put it on the transient
 backoff. System health links here in place of the approvals form, which stays

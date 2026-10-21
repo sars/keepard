@@ -76,6 +76,7 @@ import {
   type ActiveSession,
 } from './auth.js';
 import { importStatus } from './import-status.js';
+import { ImportRetryError, type ImportRetryRequests } from './import-retry.js';
 import {
   importRun,
   importRuns,
@@ -86,6 +87,7 @@ import { expenseSummary, type Owner } from './domain.js';
 import {
   BANKS,
   bankCountry,
+  bankSlug,
   isBankName,
   type BankName,
 } from './connectors/banks.js';
@@ -164,6 +166,12 @@ export type WebConfig = {
   monobankJarsExcluded?: boolean;
   telegram?: TelegramClarifications;
   classifierFor?: (owner: Owner) => Promise<Classifier>;
+  /**
+   * "Retry import" for a latched bank: leaves a request where the scheduler
+   * reads it. Absent where the two processes share no directory, and the
+   * page then shows a stopped bank without a button.
+   */
+  importRetry?: ImportRetryRequests;
   consent?: {
     start(
       owner: Owner,
@@ -997,8 +1005,41 @@ export function web(
         return;
       }
       if (req.method === 'GET' && route === '/api/connections') {
+        const approvals = config.consent
+          ? await config.consent.list(actor)
+          : [];
+        // Each approval is a timer instance, and so is the member's Monobank;
+        // whether the scheduler has stopped one, and whether a retry already
+        // waits, is answered beside it so the page can offer the button.
+        const keyed = approvals.map((approval) => ({
+          ...approval,
+          connection: isBankName(approval.bank)
+            ? `enablebanking:${actor}:${bankSlug(approval.bank)}`
+            : null,
+        }));
+        const monobank = `monobank:${actor}`;
+        const states = new Map(
+          config.importRetry
+            ? (
+                await config.importRetry.status([
+                  ...keyed.flatMap((a) => (a.connection ? [a.connection] : [])),
+                  monobank,
+                ])
+              ).map((state) => [state.connection, state])
+            : [],
+        );
+        const stateOf = (connection: string | null) => ({
+          importStopped: Boolean(
+            connection && states.get(connection)?.importStopped,
+          ),
+          retryQueued: Boolean(
+            connection && states.get(connection)?.retryQueued,
+          ),
+        });
         json(200, {
-          connections: config.consent ? await config.consent.list(actor) : [],
+          connections: keyed.map((a) => ({ ...a, ...stateOf(a.connection) })),
+          monobank: { connection: monobank, ...stateOf(monobank) },
+          retryAvailable: Boolean(config.importRetry),
         });
         return;
       }
@@ -1262,6 +1303,45 @@ export function web(
         const form = await body(req);
         if (!equals(form.csrf ?? '', csrf)) {
           json(403, { error: 'invalid_csrf', requestId });
+          return;
+        }
+        if (route === '/api/connections/retry') {
+          // One press is one request for one attempt at the scheduler's next
+          // run; the import itself happens only where the timer runs it.
+          if (!config.importRetry) {
+            json(404, { error: 'retry_not_available', requestId });
+            return;
+          }
+          try {
+            await config.importRetry.request(
+              actor,
+              form.connection ?? '',
+              actor === 'rodion',
+            );
+          } catch (error) {
+            if (error instanceof ImportRetryError) {
+              json(
+                error.code === 'not_your_connection'
+                  ? 403
+                  : error.code === 'not_stopped'
+                    ? 409
+                    : error.code === 'invalid_connection'
+                      ? 400
+                      : 500,
+                { error: error.code, requestId },
+              );
+              return;
+            }
+            throw error;
+          }
+          log({
+            event: 'import_retry_requested',
+            actor,
+            connection: form.connection,
+            route,
+            requestId,
+          });
+          json(200, { queued: true });
           return;
         }
         if (route === '/api/holdings') {

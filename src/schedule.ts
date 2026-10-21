@@ -175,6 +175,13 @@ type ScheduleOptions = {
    */
   consentRenewedAt?: () => Promise<number | null>;
   /**
+   * Where the dashboard leaves `<instance>.retry-requested` when a member
+   * presses "Retry import" on Bank connections: the consent directory, the
+   * one directory both containers share. Left out, a latch waits for an
+   * approval or a person as before.
+   */
+  retryRequestDirectory?: string;
+  /**
    * When the newest import attempt began, if it died without saying how it
    * ended — see `interruptedAttemptStartedAt`. Null when it finished, is still
    * within its lease, or there is none.
@@ -262,6 +269,61 @@ async function liftLatchTheOwnerAnswered(
   }
 }
 
+/** The marker the dashboard writes beside the consent sessions. */
+export const RETRY_REQUEST_SUFFIX = '.retry-requested';
+
+/**
+ * Lifts a latch because a member asked to, from the Bank connections page.
+ *
+ * Revolut, 20 October 2026: the bank answered one request with HTTP 400, the
+ * run read as unknown and latched, and the next morning the bank was answering
+ * normally — with the only remedy a person deleting the latch by SSH. The
+ * dashboard cannot reach the state directory by design, so it leaves a marker
+ * in the consent directory instead, and this is where the marker is read.
+ *
+ * Same contract as a renewed approval: one request buys exactly one attempt.
+ * The marker is consumed whatever it says — newer than the latch, it lifts
+ * it; older, it was answered by the run that wrote the latch and is ignored;
+ * with no latch there is nothing to lift. A run that fails again writes a
+ * fresh latch newer than any marker, so a button cannot become a retry loop.
+ * A marker that is not a plain, private file is removed without being
+ * believed: the direction that goes on waiting for a human is the safe one.
+ */
+async function liftLatchTheOwnerAskedAgain(
+  latch: string,
+  directory: string | undefined,
+  instance: string,
+): Promise<void> {
+  if (!directory) return;
+  const marker = resolve(directory, `${instance}${RETRY_REQUEST_SUFFIX}`);
+  let requested: { mtimeMs: number; trusted: boolean };
+  try {
+    const info = await lstat(marker);
+    requested = {
+      mtimeMs: info.mtimeMs,
+      trusted: info.isFile() && (info.mode & 0o022) === 0,
+    };
+  } catch {
+    // No request, or a directory this cannot read: nothing changes.
+    return;
+  }
+  try {
+    await unlink(marker);
+  } catch {
+    // A request that cannot be consumed must not be acted on either, or it
+    // would lift the latch on every tick for as long as it stayed.
+    return;
+  }
+  if (!requested.trusted) return;
+  try {
+    const latchedAt = (await lstat(latch)).mtimeMs;
+    if (requested.mtimeMs <= latchedAt) return;
+    await unlink(latch);
+  } catch {
+    // A latch that is not there needs no lifting.
+  }
+}
+
 export async function runScheduledSync(options: ScheduleOptions) {
   const [provider, owner, bank] = parseInstance(options.instance);
   const window = dailyReplayWindow(options.now);
@@ -306,6 +368,11 @@ export async function runScheduledSync(options: ScheduleOptions) {
   }
   const latch = resolve(options.stateDirectory, `${options.instance}.blocked`);
   await liftLatchTheOwnerAnswered(latch, options.consentRenewedAt);
+  await liftLatchTheOwnerAskedAgain(
+    latch,
+    options.retryRequestDirectory,
+    options.instance,
+  );
   const streakFile = resolve(
     options.stateDirectory,
     `${options.instance}.transient-streak`,
@@ -507,6 +574,11 @@ async function main() {
       announceToDatabase(connection, retryAfter, reason),
     ...(bank
       ? { consentRenewedAt: () => consentApprovedAt(owner!, bank) }
+      : {}),
+    // The dashboard's "Retry import" marker lives with the consent sessions,
+    // the one directory both containers share; Monobank instances read it too.
+    ...(process.env.ENABLEBANKING_SESSION_DIRECTORY
+      ? { retryRequestDirectory: process.env.ENABLEBANKING_SESSION_DIRECTORY }
       : {}),
     interruptedAttemptAt: () => interruptedAttemptFromDatabase(connection),
     halfHourlyPolling: await verifiedMarker(

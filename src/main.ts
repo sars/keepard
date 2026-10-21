@@ -18,6 +18,7 @@ import {
   ensureStarterCategories,
 } from './categories.js';
 import { ConsentService } from './consent.js';
+import { ImportRetryRequests } from './import-retry.js';
 import { forgetExpiredSessions, seedOwners } from './auth.js';
 import { memberSetting } from './member-settings.js';
 
@@ -193,6 +194,13 @@ const frontendAvailable = await stat(
   },
 );
 const server = web(repo, {
+  // "Retry import" leaves its request beside the consent sessions, the one
+  // directory the scheduler's container shares with this one. Only where the
+  // timers run: a laptop demo has no scheduler to read it.
+  importRetry:
+    mode === 'postgres' && process.env.ENABLEBANKING_SESSION_DIRECTORY
+      ? new ImportRetryRequests(db, process.env.ENABLEBANKING_SESSION_DIRECTORY)
+      : undefined,
   // Beside the demo's data directory, not inside it: that one belongs to
   // PGlite and is also the thing a reseed rebuilds. Only in demo mode, so the
   // household's own application never carries these routes at all.

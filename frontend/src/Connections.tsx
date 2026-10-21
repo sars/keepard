@@ -5,7 +5,13 @@ import {
 } from './lib/query';
 import { owners, type Owner } from './lib/account-visuals';
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowUpRight, CircleAlert, Landmark, ShieldCheck } from 'lucide-react';
+import {
+  ArrowUpRight,
+  CircleAlert,
+  Landmark,
+  RotateCcw,
+  ShieldCheck,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +19,14 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Choice, Field, PageHeader, RefreshButton } from '@/components/finance';
 
-type Connection = {
+/** A bank's import as the scheduler left it: stopped for a person, and
+ * whether one more attempt is already waiting for the next check. */
+type RetryTarget = {
+  connection: string | null;
+  importStopped: boolean;
+  retryQueued: boolean;
+};
+type Connection = RetryTarget & {
   bank: string;
   country: string;
   expiry: string;
@@ -49,9 +62,111 @@ function expiry(value: string) {
       }).format(date) + ' (Riga)'
     : 'Expiry unavailable';
 }
+/**
+ * What a member can do about an import the scheduler has stopped: ask for
+ * one more attempt. Nothing runs from the browser — the request waits for the
+ * import timer, so the confirmation says when it will be tried, not that it
+ * was. A second failure stops the bank again, and the button comes back.
+ */
+function RetryImport({
+  target,
+  csrf,
+  available,
+  onQueued,
+}: {
+  target: RetryTarget;
+  csrf: string;
+  /** Whether this installation shares the directory the request goes through. */
+  available: boolean;
+  onQueued: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  if (!target.importStopped || !target.connection) return null;
+  const connection = target.connection;
+  async function retry() {
+    if (busy) return;
+    setBusy(true);
+    setProblem('');
+    try {
+      const response = await fetch('/api/connections/retry', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+        body: new URLSearchParams({ csrf, connection }),
+      });
+      if (!response.ok)
+        throw new Error(
+          response.status === 403
+            ? 'Only the member this bank belongs to can ask for a retry. Reload if your session changed.'
+            : response.status === 409
+              ? 'This import is no longer stopped, so there is nothing to retry.'
+              : 'We couldn’t queue the retry. Please try again.',
+        );
+      onQueued();
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : 'Unable to queue the retry.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="mt-3 space-y-2 rounded-md border border-warning/20 bg-warning/5 p-3">
+      <p className="flex items-center gap-1.5 text-xs font-medium text-warning">
+        <CircleAlert className="size-3.5 shrink-0" />
+        Import stopped, needs a look
+      </p>
+      {target.retryQueued ? (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Retry queued. The next check, within 30 minutes, makes one attempt;
+          the result shows on Bank imports.
+        </p>
+      ) : (
+        <>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            The last import failed for a reason that needs a person. Ask for one
+            more attempt at the next check, within 30 minutes
+            {available
+              ? '. Nothing runs right now.'
+              : '. On this installation the latch is cleared on the server.'}
+          </p>
+          {available && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void retry()}
+              disabled={busy}
+            >
+              <RotateCcw className={busy ? 'animate-spin' : ''} />
+              {busy ? 'Queuing…' : 'Retry import'}
+            </Button>
+          )}
+        </>
+      )}
+      {problem && (
+        <p role="alert" className="text-xs text-destructive">
+          {problem}
+        </p>
+      )}
+    </div>
+  );
+}
 export default function Connections() {
   const [session, setSession] = useState<Session>();
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [monobank, setMonobank] = useState<RetryTarget>();
+  const [retryAvailable, setRetryAvailable] = useState(false);
+  /** The request is on file; the card says so until the next check answers. */
+  function markQueued(connection: string) {
+    setConnections((list) =>
+      list.map((c) =>
+        c.connection === connection ? { ...c, retryQueued: true } : c,
+      ),
+    );
+    setMonobank((m) =>
+      m && m.connection === connection ? { ...m, retryQueued: true } : m,
+    );
+  }
   const [bank, setBank] = useState('Wise');
   const [country, setCountry] = useState('LV');
   /** Blank asks for the longest approval the bank allows. */
@@ -103,6 +218,8 @@ export default function Connections() {
           observeSession(identity);
           setSession(identity);
           setConnections(data.connections);
+          setMonobank(data.monobank);
+          setRetryAvailable(Boolean(data.retryAvailable));
         }
       } catch (e) {
         if (!controller.signal.aborted)
@@ -349,6 +466,14 @@ export default function Connections() {
                     Check import health
                     <ArrowUpRight className="ml-2 size-3.5" />
                   </Button>
+                  {monobank && (
+                    <RetryImport
+                      target={monobank}
+                      csrf={session.csrf}
+                      available={retryAvailable}
+                      onQueued={() => markQueued(monobank.connection ?? '')}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -398,6 +523,14 @@ export default function Connections() {
                               Start a new bank approval above to renew access.
                             </p>
                           )}
+                          <RetryImport
+                            target={connection}
+                            csrf={session.csrf}
+                            available={retryAvailable}
+                            onQueued={() =>
+                              markQueued(connection.connection ?? '')
+                            }
+                          />
                         </CardContent>
                       </Card>
                     );

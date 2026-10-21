@@ -50,7 +50,10 @@ the provider refuses it: the run fails, and the scheduler latches the connection
 for a person to look at. Renewing the approval is that person answering, so the
 next run lifts the latch on its own and imports — nothing has to be cleared on
 the server. See "Failures and disablement" in [scheduling](scheduling.md) for how
-the two files are compared and why one approval permits only one attempt.
+the two files are compared and why one approval permits only one attempt. A
+latch under an approval that is still good — a bank that answered one request
+oddly — is lifted the same way by "Retry import" on the connection's card on
+Bank connections, which asks for one attempt at the next check.
 
 That next run is up to half an hour away, and until it happens the connection
 still carries the failure. So each approval records `bank_consents.authorized_at`
