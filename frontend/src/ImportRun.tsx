@@ -114,6 +114,7 @@ function Step({
         {step.code ? (
           <p className="text-xs text-warning">
             {meaning[step.code] ?? step.code.replaceAll('_', ' ')}
+            {step.reason ? ` · the bank said ${step.reason}` : ''}
             {step.retryAfterMs
               ? ` · the bank asked for ${Math.round(step.retryAfterMs / 60000)} min`
               : ''}

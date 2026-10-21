@@ -17,7 +17,68 @@ export type RequestObserver = (event: {
   size?: number;
   code?: string;
   retryAfterMs?: number;
+  /** The bank's own code for a refusal, when it gave one; see `refusalReason`. */
+  reason?: string;
 }) => void;
+
+/** How much of a refusal's body is read while looking for its code. */
+const REASON_BODY_BYTES = 4096;
+
+/**
+ * Reduces an `error` field from a refusal to something safe to keep: a code
+ * such as `EXPIRED_SESSION` or `ASPSP_ERROR`, never a sentence.
+ *
+ * Only a string survives, upper-cased and cut to forty characters, and only
+ * when nothing but letters, digits and underscores remain — a value holding a
+ * space, a dash or a quote is free text as far as this is concerned and is
+ * dropped whole rather than stripped, since a stripped sentence is still the
+ * sentence. `message` and `detail` are never read at all.
+ */
+export function sanitizeReason(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const reason = value.toUpperCase().slice(0, 40);
+  return /^[A-Z0-9_]+$/.test(reason) ? reason : undefined;
+}
+
+/**
+ * The code a bank gave for refusing a request, from the first few kilobytes
+ * of its body, which is then cancelled.
+ *
+ * Enable Banking answers a refusal with `{"error": "EXPIRED_SESSION",
+ * "message": "Session is expired"}`, and the status alone — a 401 — cannot
+ * tell an expired session from a revoked one. Only the `error` field is
+ * looked at, through `sanitizeReason`; a body that is not JSON, is empty, is
+ * longer than the bound, or cannot be read gives nothing. Never throws.
+ */
+async function refusalReason(
+  body: ReadableStream<Uint8Array> | null,
+): Promise<string | undefined> {
+  if (!body) return undefined;
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (size <= REASON_BODY_BYTES) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      chunks.push(value);
+    }
+  } catch {
+    return undefined;
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  if (size === 0 || size > REASON_BODY_BYTES) return undefined;
+  try {
+    const parsed = JSON.parse(
+      Buffer.concat(chunks).toString('utf8'),
+    ) as unknown;
+    return sanitizeReason((parsed as { error?: unknown } | null)?.error);
+  } catch {
+    return undefined;
+  }
+}
 
 export function requester(
   origin: 'https://api.monobank.ua' | 'https://api.enablebanking.com',
@@ -54,7 +115,9 @@ export function requester(
         });
         if (!response.ok) {
           const retry = response.headers.get('retry-after');
-          await response.body?.cancel();
+          // Read for its code and then dropped: the code is the one thing in
+          // a refusal worth keeping, and nothing else from the body is kept.
+          const reason = await refusalReason(response.body);
           const refused = (error: ConnectorError) => {
             report({
               path,
@@ -64,6 +127,7 @@ export function requester(
               ...(error.retryAfterMs === undefined
                 ? {}
                 : { retryAfterMs: error.retryAfterMs }),
+              ...(reason === undefined ? {} : { reason }),
             });
             return error;
           };

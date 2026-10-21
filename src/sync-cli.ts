@@ -122,6 +122,7 @@ async function main() {
         ...(event.retryAfterMs === undefined
           ? {}
           : { retryAfterMs: event.retryAfterMs }),
+        ...(event.reason === undefined ? {} : { reason: event.reason }),
       });
     await recorder.open();
     const result = await syncBank(
