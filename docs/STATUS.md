@@ -26,10 +26,32 @@ leaving nothing of the project there; details in [containers](containers.md). Ev
 below the next entry about `deploy/release.sh` and the systemd host describes
 the deployment before the move.
 
-**0a86405b99bd83afd9971c45c88fa812e8c31c04**, live since October 19, 2026 at
-schema version 68, deployed with `deploy/container-release.sh` from 4261925:
-`app`, `db`, `showcase` and the Telegram worker running, 4,466 transactions at
-verification, no migration. It carries PRs #176 to #179:
+**aaf9f2c2c5329a27ad44c334226e427b9282badd**, live since October 21, 2026 at
+schema version 68, deployed with `deploy/container-release.sh` from 7124d6e:
+`app`, `db`, `showcase` and the Telegram worker running, 4,494 transactions at
+verification, no migration. It carries PRs #186 to #188: the README links,
+the renamed repository on the landing page, and the bank's own refusal code
+kept as `reason` in the attempt trace (the dated entry below). The first run
+of the release stopped itself at the pause before the switch, because a
+Monobank import was in flight — Monobank allows one request a minute, so its
+imports take about seven minutes, longer than the five the release waits —
+and the exit trap resumed the timers and the worker; the second run, started
+as that import ended, switched cleanly. Verified after the switch: the
+public name answers `/health/ready` with the new release, the demo answers
+`/health/live`, all seven import timers are back, and the four services are
+healthy.
+
+**373b90fd5d4743f4124f3036963f617e61dc04ee**, superseded October 21, 2026,
+live from the evening of October 19 at schema version 68: it carried PRs #180
+to #185 — the landing page's hosting and container fix, the public favicon,
+the product-focused landing copy and the status records of the Keepard
+release — and was not recorded here when it went out.
+
+**0a86405b99bd83afd9971c45c88fa812e8c31c04**, superseded October 19, 2026, live
+since earlier that day at schema version 68, deployed with
+`deploy/container-release.sh` from 4261925: `app`, `db`, `showcase` and the
+Telegram worker running, 4,466 transactions at verification, no migration. It
+carries PRs #176 to #179:
 - **Members named in settings.** `MEMBER_1_NAME`/`MEMBER_2_NAME` name the
   members (Alex and Sam by default). The server's `app.env` sets Rodion and
   Katya; this was added, with a backup, before the release. The old login and
@@ -1433,7 +1455,7 @@ the recorder's forwarder in `sync-cli.ts` carry the field into
 `bank_sync_attempts.steps`, and the run screen shows it beside the error code.
 Tests in `test/import-runs.test.ts` hold the allowed code, a free-text value
 dropped whole, a non-JSON body, an empty body and a body past the bound.
-Implemented and tested; not yet released. Details in
+Released as aaf9f2c2 the same day (PR #188). Details in
 [import runs](import-runs.md).
 
 # A renewed approval was not reaching the scheduler — September 22, 2026
