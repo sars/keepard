@@ -47,7 +47,7 @@ capabilities dropped and `/tmp` on a tmpfs, and mounts:
 | Host path | In the container | Why |
 | --- | --- | --- |
 | `$PF_CONFIG_DIR` (`/etc/private-finances`) | `/etc/private-finances`, read-only | `app.env`, `sync.env`, `telegram.env`, `db.env`, `credentials/`, `schedules/` — the same files at the same paths as [credentials](credentials.md) documents |
-| `$PF_STATE_DIR/consent` (`/var/lib/private-finances/consent`) | `/var/lib/private-finances-consent` | the bank-session secrets the consent flow writes |
+| `$PF_STATE_DIR/consent` (`/var/lib/private-finances/consent`) | `/var/lib/private-finances-consent` | the bank-session secrets the consent flow writes, and the dashboard's `<instance>.retry-requested` markers the scheduler consumes ([scheduling](scheduling.md)) |
 | `$PF_STATE_DIR/sync` (`/var/lib/private-finances/sync`) | `/var/lib/private-finances-sync` | the scheduler's state, `worker` only |
 | `$PF_STATE_DIR/showcase` (`/var/lib/private-finances/showcase`) | `/var/lib/private-finances-showcase` | the showcase's PGlite workspace and its refill request and status files; `showcase` and `showcase-reseed` only, which mount nothing else |
 

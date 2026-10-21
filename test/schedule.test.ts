@@ -11,7 +11,7 @@ import {
   symlink,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import test from 'node:test';
 import {
   dailyReplayWindow,
@@ -612,5 +612,156 @@ test('a bank with no approval to renew keeps its latch final', async () => {
     assert.equal(calls, 1);
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Revolut, 20 October 2026: one HTTP 400 from the bank read as unknown and
+ * latched the connection; a day later the bank answered normally, and the only
+ * remedy was a person deleting the latch over SSH. The dashboard now leaves a
+ * `<instance>.retry-requested` marker in the consent directory instead, and
+ * the scheduler reads it the way it reads a renewed approval.
+ */
+test('a retry the owner asked for lifts the latch once, and the request is consumed', async () => {
+  const state = await mkdtemp(join(tmpdir(), 'pf-schedule-retry-state-'));
+  const consent = await mkdtemp(join(tmpdir(), 'pf-schedule-retry-consent-'));
+  const tick = () => new Promise((done) => setTimeout(done, 20));
+  const marker = join(consent, 'enablebanking-rodion-revolut.retry-requested');
+  let calls = 0;
+  const options = {
+    instance: 'enablebanking-rodion-revolut',
+    now: new Date('2026-10-20T06:07:00Z'),
+    stateDirectory: state,
+    retryRequestDirectory: consent,
+    ready: async () => true,
+    invoke: async () => {
+      calls++;
+      return 'blocked' as const;
+    },
+  };
+  try {
+    // The bank answers 400 once: one failed attempt, then silence.
+    assert.equal(await runScheduledSync(options), 'blocked');
+    assert.equal(await runScheduledSync(options), 'blocked');
+    assert.equal(calls, 1);
+
+    // The owner presses "Retry import" on Bank connections.
+    await tick();
+    await writeFile(marker, 'rodion\n', { mode: 0o600 });
+    await tick();
+    assert.equal(await runScheduledSync(options), 'blocked');
+    assert.equal(calls, 2);
+    // The request bought exactly one attempt and is gone with it.
+    assert.equal((await readdir(consent)).includes(basename(marker)), false);
+
+    // That attempt failed too, so the fresh latch waits for a person again.
+    assert.equal(await runScheduledSync(options), 'blocked');
+    assert.equal(await runScheduledSync(options), 'blocked');
+    assert.equal(calls, 2);
+  } finally {
+    await rm(state, { recursive: true, force: true });
+    await rm(consent, { recursive: true, force: true });
+  }
+});
+
+test('a retry request older than the latch was answered by the run that latched, and is removed', async () => {
+  const state = await mkdtemp(join(tmpdir(), 'pf-schedule-retry-stale-'));
+  const consent = await mkdtemp(join(tmpdir(), 'pf-schedule-retry-stale-c-'));
+  const tick = () => new Promise((done) => setTimeout(done, 20));
+  const marker = join(consent, 'monobank-katya.retry-requested');
+  let calls = 0;
+  const options = {
+    instance: 'monobank-katya',
+    now: new Date('2026-10-20T06:07:00Z'),
+    stateDirectory: state,
+    retryRequestDirectory: consent,
+    ready: async () => true,
+    invoke: async () => {
+      calls++;
+      return 'blocked' as const;
+    },
+  };
+  try {
+    // A request left before the latch: the run that followed it is the one
+    // that failed, so it must not be read as asking again.
+    await writeFile(marker, 'katya\n', { mode: 0o600 });
+    await tick();
+    await writeFile(
+      join(state, 'monobank-katya.blocked'),
+      'review_required\n',
+      {
+        mode: 0o600,
+      },
+    );
+    await tick();
+    assert.equal(await runScheduledSync(options), 'blocked');
+    assert.equal(calls, 0);
+    assert.equal((await readdir(consent)).includes(basename(marker)), false);
+    assert.equal(
+      (await readdir(state)).includes('monobank-katya.blocked'),
+      true,
+    );
+  } finally {
+    await rm(state, { recursive: true, force: true });
+    await rm(consent, { recursive: true, force: true });
+  }
+});
+
+test('a retry request with nothing latched is simply removed', async () => {
+  const state = await mkdtemp(join(tmpdir(), 'pf-schedule-retry-idle-'));
+  const consent = await mkdtemp(join(tmpdir(), 'pf-schedule-retry-idle-c-'));
+  const marker = join(consent, 'monobank-rodion.retry-requested');
+  let calls = 0;
+  const options = {
+    instance: 'monobank-rodion',
+    now: new Date('2026-10-20T06:07:00Z'),
+    stateDirectory: state,
+    retryRequestDirectory: consent,
+    ready: async () => true,
+    invoke: async () => {
+      calls++;
+      return 'success' as const;
+    },
+  };
+  try {
+    await writeFile(marker, 'rodion\n', { mode: 0o600 });
+    assert.equal(await runScheduledSync(options), 'success');
+    assert.equal(calls, 1);
+    assert.equal((await readdir(consent)).includes(basename(marker)), false);
+  } finally {
+    await rm(state, { recursive: true, force: true });
+    await rm(consent, { recursive: true, force: true });
+  }
+});
+
+test('a retry request anyone could have written is removed and not believed', async () => {
+  const state = await mkdtemp(join(tmpdir(), 'pf-schedule-retry-loose-'));
+  const consent = await mkdtemp(join(tmpdir(), 'pf-schedule-retry-loose-c-'));
+  const tick = () => new Promise((done) => setTimeout(done, 20));
+  const marker = join(consent, 'monobank-rodion.retry-requested');
+  let calls = 0;
+  const options = {
+    instance: 'monobank-rodion',
+    now: new Date('2026-10-20T06:07:00Z'),
+    stateDirectory: state,
+    retryRequestDirectory: consent,
+    ready: async () => true,
+    invoke: async () => {
+      calls++;
+      return 'blocked' as const;
+    },
+  };
+  try {
+    assert.equal(await runScheduledSync(options), 'blocked');
+    await tick();
+    await writeFile(marker, 'rodion\n', { mode: 0o666 });
+    await chmod(marker, 0o666);
+    await tick();
+    assert.equal(await runScheduledSync(options), 'blocked');
+    assert.equal(calls, 1);
+    assert.equal((await readdir(consent)).includes(basename(marker)), false);
+  } finally {
+    await rm(state, { recursive: true, force: true });
+    await rm(consent, { recursive: true, force: true });
   }
 });

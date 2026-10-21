@@ -7,6 +7,25 @@ Keep this file bounded: `python3 scripts/archive_status.py --keep 10` moves
 older entries out. Run `scripts/deploy-status.sh` to compare the deployed
 release with `origin/main` rather than reconstructing it by hand.
 
+## In the repository, not yet released
+
+**"Retry import" for a stopped bank, from Bank connections.** Implemented and
+covered by tests on 21 October 2026, not deployed. A bank import that fails for
+a reason the scheduler cannot classify latches its connection, and until now
+only a person deleting the latch over SSH could restart it (Revolut, 20
+October: one HTTP 400, answered normally a day later). The connection's card on
+Bank connections now shows "Import stopped, needs a look" with a "Retry import"
+button for the member it belongs to or the administrator; the press writes a
+`<instance>.retry-requested` marker into the shared consent directory, is
+recorded in `audit_events`, and the scheduler lifts the latch at its next run
+when the marker is newer than the latch, for exactly one attempt. The page says
+the retry is queued for the next check, within thirty minutes. Verified: unit
+tests for the marker's four cases and the 0600 mode, the API's ownership and
+CSRF rules, and the screen at phone and desktop widths against a seeded stopped
+bank. Not verified: a real timer run on the server consuming the marker; the
+first latched bank after the release will show that. See
+[scheduling](scheduling.md), "Failures and disablement".
+
 ## Deployed release
 
 **The application moved to the container host on 17 October 2026 (PF-022).**
