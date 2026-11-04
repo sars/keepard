@@ -169,6 +169,62 @@ test('HTTP flow: CSRF, duplicate import, classification, escaping, exact summary
   }
 });
 
+test('LAN hosts are accepted over plain HTTP with a non-Secure cookie', async () => {
+  const db = memoryDatabase();
+  await migrate(db);
+  await seedTestOwners(db);
+  const config: WebConfig = {
+    port: 0,
+    mode: 'postgres',
+    release: 'test',
+    lanHosts: ['192.168.0.162:3300'],
+  };
+  const server = web(new Repository(db), config, () => {});
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  config.port = (server.address() as AddressInfo).port;
+  const base = `http://127.0.0.1:${config.port}`;
+  const owner = TEST_OWNERS[0]!;
+  const login = (host: string) =>
+    new Promise<{ status: number; cookie: string }>((resolve, reject) => {
+      const req = request(
+        base + '/api/login',
+        {
+          method: 'POST',
+          headers: {
+            host,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        },
+        (res) => {
+          res.resume();
+          resolve({
+            status: res.statusCode!,
+            cookie: String(res.headers['set-cookie'] ?? ''),
+          });
+        },
+      );
+      req.on('error', reject);
+      req.end(
+        new URLSearchParams({
+          email: owner.email,
+          password: owner.password,
+        }).toString(),
+      );
+    });
+  try {
+    const lan = await login('192.168.0.162:3300');
+    assert.equal(lan.status, 200);
+    assert.equal(lan.cookie.includes('Secure'), false);
+    const local = await login(`127.0.0.1:${config.port}`);
+    assert.equal(local.status, 200);
+    assert.equal(local.cookie.includes('Secure'), true);
+    assert.equal((await login('192.168.0.99:3300')).status, 403);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await db.close();
+  }
+});
+
 test('PostgreSQL mode requires credentials and enforces owner writes', async () => {
   const db = memoryDatabase();
   await migrate(db);

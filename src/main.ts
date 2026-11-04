@@ -253,6 +253,9 @@ const server = web(repo, {
   mode,
   release: process.env.RELEASE_SHA ?? 'local',
   publicOrigin: process.env.PUBLIC_ORIGIN,
+  lanHosts: process.env.LAN_HOSTS?.split(',')
+    .map((host) => host.trim())
+    .filter(Boolean),
   demoLogin,
   monobankJarsExcluded: process.env.MONOBANK_INCLUDE_JARS === 'false',
 });

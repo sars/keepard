@@ -163,6 +163,12 @@ export type WebConfig = {
   // `seedOwners` before the server listens — see src/auth.ts.
   release: string;
   publicOrigin?: string;
+  /**
+   * Hosts (host:port) the dashboard is reached at over plain HTTP on a home
+   * network, e.g. 192.168.0.162:3300. Accepted as a Host, and given a
+   * non-Secure session cookie, since no HTTPS is in front of them.
+   */
+  lanHosts?: string[];
   monobankJarsExcluded?: boolean;
   telegram?: TelegramClarifications;
   classifierFor?: (owner: Owner) => Promise<Classifier>;
@@ -458,6 +464,7 @@ export function web(
           `127.0.0.1:${config.port}`,
           `localhost:${config.port}`,
           ...(publicHost ? [publicHost] : []),
+          ...(config.lanHosts ?? []),
         ].includes(req.headers.host ?? '')
       ) {
         json(403, { error: 'invalid_host', requestId });
@@ -529,8 +536,11 @@ export function web(
         res.end(content);
       };
       // The cookie is marked Secure wherever HTTPS is known to be in front:
-      // always for the real workspace, and for a demo served at an origin.
-      const secure = config.mode !== 'demo' || Boolean(publicHost);
+      // always for the real workspace, and for a demo served at an origin —
+      // except on a LAN host, which is plain HTTP and would drop the cookie.
+      const secure =
+        (config.mode !== 'demo' || Boolean(publicHost)) &&
+        !config.lanHosts?.includes(req.headers.host ?? '');
       const token = sessionToken(req);
       const session = selfSignedIn
         ? demoSession
